@@ -61,7 +61,7 @@ export default function GraphView({ graphData, activeFileId, onSelectFile }) {
       {/* Header Bar */}
       <div className="px-3.5 py-2 border-b border-[#2e2e2e] flex items-center justify-between bg-[#141414] shrink-0">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[#dcddde]">
-          <Network className="w-3.5 h-3.5 text-[#70a5fd]" />
+          <Network className="w-3.5 h-3.5 text-[#e2e8f0]" />
           <span>Local Neighborhood Graph</span>
         </div>
         <div className="flex items-center gap-1">
@@ -114,8 +114,8 @@ export default function GraphView({ graphData, activeFileId, onSelectFile }) {
             ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
 
             if (isCenter) {
-              ctx.fillStyle = '#70a5fd';
-              ctx.shadowColor = '#70a5fd';
+              ctx.fillStyle = '#e2e8f0';
+              ctx.shadowColor = '#e2e8f0';
               ctx.shadowBlur = 8;
             } else if (isUnresolved) {
               ctx.fillStyle = '#666666';
@@ -166,7 +166,7 @@ export default function GraphView({ graphData, activeFileId, onSelectFile }) {
               const midY = (start.y + end.y) / 2;
               const fontSize = Math.max(7, 8 / (globalScale || 1));
               ctx.font = `italic ${fontSize}px Inter, sans-serif`;
-              ctx.fillStyle = isPending ? '#fbbf24' : '#70a5fd';
+              ctx.fillStyle = isPending ? '#fbbf24' : '#e2e8f0';
               ctx.textAlign = 'center';
               ctx.fillText(link.relationship, midX, midY - 2);
             }

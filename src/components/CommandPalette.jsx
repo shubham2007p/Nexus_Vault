@@ -44,7 +44,7 @@ export default function CommandPalette({ isOpen, onClose, files = [], onSelectFi
       <div className="bg-[#1e1e1e] border border-[#383838] rounded-xl w-[520px] max-w-[90vw] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Input Bar */}
         <div className="p-3 border-b border-[#2e2e2e] flex items-center gap-3 bg-[#181818]">
-          <Search className="w-4 h-4 text-[#70a5fd] shrink-0" />
+          <Search className="w-4 h-4 text-[#e2e8f0] shrink-0" />
           <input
             type="text"
             placeholder="Type note title... (Esc to close)"
@@ -82,7 +82,7 @@ export default function CommandPalette({ isOpen, onClose, files = [], onSelectFi
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-[#70a5fd]" />
+                  <FileText className="w-3.5 h-3.5 text-[#e2e8f0]" />
                   <span className="font-medium">{file.title}</span>
                 </div>
                 <span className="text-[10px] text-[#777777] font-mono">{file.path}</span>

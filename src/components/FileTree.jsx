@@ -32,7 +32,7 @@ export default function FileTree({
       {/* Header */}
       <div className="p-3.5 border-b border-[#2e2e2e] flex items-center justify-between">
         <div className="flex items-center gap-2 font-semibold text-[#dcddde] text-xs tracking-wide">
-          <Folder className="w-4 h-4 text-[#70a5fd]" />
+          <Folder className="w-4 h-4 text-[#e2e8f0]" />
           <span>Vault Explorer</span>
         </div>
         <button
@@ -54,7 +54,7 @@ export default function FileTree({
             placeholder="Search notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#111111] border border-[#2e2e2e] rounded px-2.5 pl-8 py-1.5 text-xs text-[#dcddde] placeholder-[#777777] focus:outline-none focus:border-[#70a5fd] transition-colors"
+            className="w-full bg-[#111111] border border-[#2e2e2e] rounded px-2.5 pl-8 py-1.5 text-xs text-[#dcddde] placeholder-[#777777] focus:outline-none focus:border-[#e2e8f0] transition-colors"
           />
         </div>
         <button
@@ -80,7 +80,7 @@ export default function FileTree({
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             autoFocus
-            className="w-full bg-[#141414] border border-[#70a5fd] rounded px-2.5 py-1 text-xs text-[#dcddde] placeholder-[#666666] focus:outline-none mb-2"
+            className="w-full bg-[#141414] border border-[#e2e8f0] rounded px-2.5 py-1 text-xs text-[#dcddde] placeholder-[#666666] focus:outline-none mb-2"
           />
           <div className="flex justify-end gap-1.5">
             <button
@@ -92,7 +92,7 @@ export default function FileTree({
             </button>
             <button
               type="submit"
-              className="px-2.5 py-0.5 text-[11px] bg-[#70a5fd] hover:bg-[#5b94f0] text-black font-semibold rounded transition-colors"
+              className="px-2.5 py-0.5 text-[11px] bg-[#e2e8f0] hover:bg-white text-black font-semibold rounded transition-colors"
             >
               Create
             </button>
@@ -120,7 +120,7 @@ export default function FileTree({
                 }`}
               >
                 <div className="flex items-center gap-2 truncate pr-1">
-                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#70a5fd]' : 'text-[#666666]'}`} />
+                  <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#e2e8f0]' : 'text-[#666666]'}`} />
                   <span className="truncate">{file.title}</span>
                 </div>
                 <button

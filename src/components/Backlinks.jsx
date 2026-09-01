@@ -27,7 +27,7 @@ export default function Backlinks({
       {/* Header */}
       <div className="p-3.5 border-b border-[#2e2e2e] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 font-semibold text-[#dcddde] text-xs tracking-wide">
-          <ArrowLeftRight className="w-4 h-4 text-[#70a5fd]" />
+          <ArrowLeftRight className="w-4 h-4 text-[#e2e8f0]" />
           <span>Backlinks & AI Inspector</span>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function Backlinks({
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-[#999999] flex items-center gap-1.5">
-              <Link2 className="w-3.5 h-3.5 text-[#70a5fd]" />
+              <Link2 className="w-3.5 h-3.5 text-[#e2e8f0]" />
               Incoming Links ({acceptedLinks.length})
             </span>
           </div>
@@ -113,12 +113,12 @@ export default function Backlinks({
                   className="p-2.5 rounded bg-[#242424] hover:bg-[#2e2e2e] border border-[#2e2e2e] cursor-pointer transition-colors space-y-1 group"
                 >
                   <div className="flex items-center justify-between text-xs font-medium text-[#dcddde]">
-                    <span className="group-hover:text-[#70a5fd] transition-colors flex items-center gap-1.5">
+                    <span className="group-hover:text-[#e2e8f0] transition-colors flex items-center gap-1.5">
                       {link.source_file_title}
-                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-[#70a5fd]" />
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-[#e2e8f0]" />
                     </span>
                     {link.relationship && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-mono bg-[#70a5fd]/20 text-[#70a5fd] border border-[#70a5fd]/30 rounded">
+                      <span className="px-1.5 py-0.5 text-[10px] font-mono bg-[#e2e8f0]/20 text-[#e2e8f0] border border-[#e2e8f0]/30 rounded">
                         {link.relationship}
                       </span>
                     )}

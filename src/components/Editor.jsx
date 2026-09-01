@@ -105,7 +105,7 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing }) {
               setSaveState('dirty');
             }}
             placeholder="Untitled Note"
-            className="bg-transparent text-base font-semibold text-[#ffffff] focus:outline-none focus:border-b focus:border-[#70a5fd] px-1 py-0.5 max-w-md"
+            className="bg-transparent text-base font-semibold text-[#ffffff] focus:outline-none focus:border-b focus:border-[#e2e8f0] px-1 py-0.5 max-w-md"
           />
           <div className="flex items-center gap-1.5 text-xs text-[#999999]">
             {saveState === 'saving' && (
@@ -139,9 +139,9 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing }) {
           <button
             onClick={() => onProcessAI(file.id)}
             disabled={isAIProcessing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#70a5fd] hover:bg-[#5b94f0] text-black font-semibold text-xs shadow disabled:opacity-50 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#e2e8f0] hover:bg-white text-black font-semibold text-xs shadow disabled:opacity-50 transition-colors cursor-pointer"
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isAIProcessing ? 'animate-spin' : ''}`} />
+            <Sparkles className={`w-3.5 h-3.5 ${isAIProcessing ? 'animate-spin' : 'text-amber-600'}`} />
             <span>{isAIProcessing ? 'Analyzing...' : 'Process File'}</span>
           </button>
         </div>

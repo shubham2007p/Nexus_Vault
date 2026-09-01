@@ -17,7 +17,7 @@ export default {
           active: '#363636',
           text: '#dcddde',
           muted: '#999999',
-          accent: '#70a5fd',
+          accent: '#e2e8f0',
         }
       }
     },
