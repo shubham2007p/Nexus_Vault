@@ -1,0 +1,22 @@
+# Node / NPM
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite / Build
+dist/
+dist-ssr/
+*.local
+
+# Database & Environment
+server/vault.db
+server/vault.db-journal
+.env
+.env.local
+
+# Scratch & Temporary
+scratch/
+.DS_Store
+Thumbs.db
