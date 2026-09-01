@@ -2,6 +2,10 @@
 
 <br/>
 
+<img src="support/nexus_vault_logo.jpg" alt="NexusVault Logo" width="220" style="border-radius: 20px; box-shadow: 0 0 30px rgba(112, 165, 253, 0.3);"/>
+
+<br/>
+
 <h1 align="center">⚡ NexusVault</h1>
 
 <p align="center">
