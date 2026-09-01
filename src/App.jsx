@@ -54,11 +54,13 @@ export default function App() {
     try {
       const res = await fetch('/api/files');
       const data = await res.json();
-      setFiles(data);
-      if (data.length > 0 && !activeFileId) {
-        setActiveFileId(data[0].id);
+      const fileList = Array.isArray(data) ? data : [];
+      setFiles(fileList);
+      if (fileList.length > 0 && !activeFileId) {
+        setActiveFileId(fileList[0].id);
       }
     } catch (err) {
+      setFiles([]);
       showToast('Error loading vault files', 'error');
     }
   };
@@ -83,7 +85,9 @@ export default function App() {
       }
       if (backlinksRes.ok) {
         const bData = await backlinksRes.json();
-        setBacklinks(bData);
+        setBacklinks(Array.isArray(bData) ? bData : []);
+      } else {
+        setBacklinks([]);
       }
     } catch (err) {
       console.error('Error fetching file details:', err);
@@ -161,7 +165,8 @@ export default function App() {
       const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
       if (res.ok) {
         showToast('Note deleted', 'info');
-        const remaining = files.filter((f) => f.id !== id);
+        const safeFilesList = Array.isArray(files) ? files : [];
+        const remaining = safeFilesList.filter((f) => f.id !== id);
         setFiles(remaining);
         if (activeFileId === id) {
           setActiveFileId(remaining.length > 0 ? remaining[0].id : null);
