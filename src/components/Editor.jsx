@@ -95,8 +95,8 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing }) {
   return (
     <div className="flex-1 bg-[#1e1e1e] flex flex-col h-full overflow-hidden border-r border-[#2e2e2e]">
       {/* Editor Header Bar */}
-      <div className="px-5 py-2.5 border-b border-[#2e2e2e] bg-[#181818] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3 flex-1">
+      <div className="px-5 py-2.5 border-b border-[#282828] bg-[#141414] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <input
             type="text"
             value={title}
@@ -105,22 +105,27 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing }) {
               setSaveState('dirty');
             }}
             placeholder="Untitled Note"
-            className="bg-transparent text-base font-semibold text-[#ffffff] focus:outline-none focus:border-b focus:border-[#e2e8f0] px-1 py-0.5 max-w-md"
+            className="bg-transparent text-base font-semibold text-[#ffffff] focus:outline-none focus:border-b-2 focus:border-[#e2e8f0] px-1 py-0.5 max-w-md truncate transition-all"
           />
-          <div className="flex items-center gap-1.5 text-xs text-[#999999]">
+          <div className="flex items-center gap-2 text-xs text-[#888888]">
             {saveState === 'saving' && (
               <span className="flex items-center gap-1 text-amber-400">
                 <Clock className="w-3 h-3 animate-spin" /> Saving...
               </span>
             )}
             {saveState === 'saved' && (
-              <span className="flex items-center gap-1 text-emerald-400">
+              <span className="flex items-center gap-1 text-emerald-400 font-medium">
                 <Check className="w-3 h-3" /> Saved
               </span>
             )}
             {saveState === 'dirty' && (
-              <span className="text-amber-400/80 text-[11px] italic">• Unsaved changes</span>
+              <span className="text-amber-400/90 text-[11px] font-mono">• Unsaved</span>
             )}
+
+            {/* Note Stats pill */}
+            <span className="hidden sm:inline-flex items-center text-[11px] text-[#666666] border-l border-[#2e2e2e] pl-2.5">
+              {content.trim() ? content.trim().split(/\s+/).length : 0} words
+            </span>
           </div>
         </div>
 
@@ -129,20 +134,25 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing }) {
           <button
             onClick={handleManualSave}
             disabled={saveState === 'saved'}
-            className="p-1.5 rounded bg-[#2a2a2a] hover:bg-[#363636] text-[#dcddde] disabled:opacity-40 transition-colors border border-[#383838]"
+            className="p-1.5 rounded bg-[#242424] hover:bg-[#303030] text-[#dcddde] disabled:opacity-30 transition-colors border border-[#333333]"
             title="Save Note (Ctrl+S)"
           >
-            <Save className="w-4 h-4" />
+            <Save className="w-3.5 h-3.5" />
           </button>
 
           {/* Process File AI Button */}
           <button
             onClick={() => onProcessAI(file.id)}
             disabled={isAIProcessing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#e2e8f0] hover:bg-white text-black font-semibold text-xs shadow disabled:opacity-50 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#e2e8f0] hover:bg-white text-black font-semibold text-xs shadow-sm disabled:opacity-50 transition-all cursor-pointer"
+            title="Run AI Link Agent to discover connections"
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isAIProcessing ? 'animate-spin' : 'text-amber-600'}`} />
-            <span>{isAIProcessing ? 'Analyzing...' : 'Process File'}</span>
+            <Sparkles
+              className={`w-3.5 h-3.5 ${
+                isAIProcessing ? 'animate-spin text-amber-700' : 'text-amber-600'
+              }`}
+            />
+            <span>{isAIProcessing ? 'Analyzing Connections...' : 'Process File'}</span>
           </button>
         </div>
       </div>

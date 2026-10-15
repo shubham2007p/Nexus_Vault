@@ -240,6 +240,7 @@ app.get('/api/files/:id/graph', async (req, res) => {
     res.json({
       nodes: Array.from(nodesMap.values()),
       edges,
+      links: edges,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -43,7 +43,7 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [activeFileId, setActiveFileId] = useState(null);
   const [activeFile, setActiveFile] = useState(null);
-  const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
+  const [graphData, setGraphData] = useState({ nodes: [], edges: [], links: [] });
   const [backlinks, setBacklinks] = useState([]);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
@@ -274,7 +274,7 @@ export default function App() {
       </ErrorBoundary>
 
       {/* Right Pane: Graph View + Backlinks Inspector */}
-      <div className="w-80 flex flex-col h-full bg-[#1a1b26] border-l border-[#24283b] overflow-hidden shrink-0">
+      <div className="w-80 flex flex-col h-full bg-[#181818] border-l border-[#282828] overflow-hidden shrink-0">
         <ErrorBoundary>
           <GraphView
             graphData={graphData}
