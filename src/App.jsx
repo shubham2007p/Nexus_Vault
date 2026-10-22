@@ -6,6 +6,7 @@ import Backlinks from './components/Backlinks';
 import CommandPalette from './components/CommandPalette';
 import LandingPage from './components/landing/LandingPage';
 import AIReviewModal from './components/modals/AIReviewModal';
+import NoteSynthesisModal from './components/modals/NoteSynthesisModal';
 import { Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
 
 class ErrorBoundary extends Component {
@@ -56,6 +57,8 @@ export default function App() {
   const [backlinks, setBacklinks] = useState([]);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isAIReviewOpen, setIsAIReviewOpen] = useState(false);
+  const [isSynthesisModalOpen, setIsSynthesisModalOpen] = useState(false);
+  const [synthesisTargetFile, setSynthesisTargetFile] = useState(null);
   const [showAILinksOnGraph, setShowAILinksOnGraph] = useState(true);
   const [isFullscreenGraph, setIsFullscreenGraph] = useState(false);
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
@@ -343,6 +346,27 @@ export default function App() {
     }
   };
 
+  const handleOpenSynthesis = (targetFile = activeFile) => {
+    if (!targetFile) return;
+    setSynthesisTargetFile(targetFile);
+    setIsSynthesisModalOpen(true);
+  };
+
+  const handleSynthesisSuccess = async (formalFile, isUpdate) => {
+    await fetchFiles();
+    await fetchGlobalGraph();
+    if (formalFile?.id) {
+      setActiveFileId(formalFile.id);
+      await fetchActiveFileData(formalFile.id);
+    }
+    showToast(
+      isUpdate
+        ? `Updated companion note "${formalFile?.title}"`
+        : `Created formal companion note "${formalFile?.title}"!`,
+      'success'
+    );
+  };
+
   if (route === 'landing') {
     return <LandingPage onLaunchApp={handleLaunchApp} />;
   }
@@ -400,6 +424,8 @@ export default function App() {
           onProcessAI={handleProcessAI}
           isAIProcessing={isAIProcessing}
           onOpenFullGraph={() => setIsFullscreenGraph(true)}
+          onOpenSynthesis={handleOpenSynthesis}
+          onNavigateToFile={handleSelectFile}
         />
       </ErrorBoundary>
 
@@ -457,6 +483,15 @@ export default function App() {
         onRejectLink={handleRejectLink}
         onAcceptAll={handleAcceptAllLinks}
         onRejectAll={handleRejectAllLinks}
+      />
+
+      {/* Groq Academic Note Synthesis Modal */}
+      <NoteSynthesisModal
+        isOpen={isSynthesisModalOpen}
+        onClose={() => setIsSynthesisModalOpen(false)}
+        file={synthesisTargetFile || activeFile}
+        onSynthesisSuccess={handleSynthesisSuccess}
+        onNavigateToFile={handleSelectFile}
       />
     </div>
   );

@@ -72,5 +72,34 @@ export async function initDb() {
     );
   `);
 
+  // Migration: add companion note columns to files table if not already present
+  const fileColumns = await dbAll(`PRAGMA table_info(files);`);
+  const colNames = new Set(fileColumns.map((c) => c.name));
+  if (!colNames.has('note_type')) {
+    await dbRun(`ALTER TABLE files ADD COLUMN note_type TEXT DEFAULT 'raw';`);
+  }
+  if (!colNames.has('raw_file_id')) {
+    await dbRun(`ALTER TABLE files ADD COLUMN raw_file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;`);
+  }
+  if (!colNames.has('formal_file_id')) {
+    await dbRun(`ALTER TABLE files ADD COLUMN formal_file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;`);
+  }
+
+  // Table to store history of formal note syntheses, prompt versions, and structured responses
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS synthesis_versions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      raw_file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+      formal_file_id INTEGER REFERENCES files(id) ON DELETE SET NULL,
+      version_number INTEGER NOT NULL DEFAULT 1,
+      prompt_version TEXT NOT NULL,
+      model TEXT NOT NULL,
+      raw_input TEXT NOT NULL,
+      structured_output TEXT,
+      rendered_markdown TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+
   console.log('Database initialized successfully at:', dbPath);
 }

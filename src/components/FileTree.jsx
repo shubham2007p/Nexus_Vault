@@ -146,10 +146,21 @@ export default function FileTree({
                   <div className="flex items-center gap-2 truncate pr-1 min-w-0">
                     <FileText
                       className={`w-3.5 h-3.5 shrink-0 ${
-                        isActive ? 'text-purple-400' : 'text-[#71717a]'
+                        isActive
+                          ? 'text-purple-400'
+                          : file.note_type === 'formal' || (file.title && file.title.includes('(Formal)'))
+                          ? 'text-amber-400'
+                          : 'text-[#71717a]'
                       }`}
                     />
                     <span className="truncate">{file.title}</span>
+                    {file.note_type === 'formal' || (file.title && file.title.includes('(Formal)')) ? (
+                      <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0">
+                        Formal
+                      </span>
+                    ) : file.formal_file_id ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Has Formal Companion Note" />
+                    ) : null}
                   </div>
 
                   {/* Context Actions: Rename & Delete */}

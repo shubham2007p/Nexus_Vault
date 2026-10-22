@@ -5,6 +5,13 @@ import { initDb, dbAll, dbGet, dbRun } from './db.js';
 import { syncFileLinks } from './parser.js';
 import { processFileWithAI } from './ai.js';
 import { seedDatabase } from './seed.js';
+import {
+  GroqSynthesisProvider,
+  renderFormalMarkdown,
+  syncGraphWithRetry,
+  CURRENT_PROMPT_VERSION,
+  DEFAULT_GROQ_MODEL,
+} from './synthesisService.js';
 
 dotenv.config();
 
@@ -18,11 +25,11 @@ app.use(express.json());
 await initDb();
 await seedDatabase();
 
-// 1. GET /api/files - List all files
+// 1. GET /api/files - List all files with companion metadata
 app.get('/api/files', async (req, res) => {
   try {
     const files = await dbAll(
-      `SELECT id, title, path, created_at, updated_at FROM files ORDER BY title ASC`
+      `SELECT id, title, path, note_type, raw_file_id, formal_file_id, created_at, updated_at FROM files ORDER BY title ASC`
     );
     res.json(files);
   } catch (err) {
@@ -33,19 +40,27 @@ app.get('/api/files', async (req, res) => {
 // 2. POST /api/files - Create a file
 app.post('/api/files', async (req, res) => {
   try {
-    const { title, content, path: filePath } = req.body;
+    const { title, content, path: filePath, note_type = 'raw', raw_file_id = null } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
 
-    const cleanTitle = title.trim();
-    const finalPath = filePath || `${cleanTitle}.md`;
+    let cleanTitle = title.trim();
+    let finalPath = filePath || `${cleanTitle}.md`;
+    let counter = 1;
+    while (await dbGet(`SELECT id FROM files WHERE path = ?`, [finalPath])) {
+      finalPath = `${cleanTitle} ${counter}.md`;
+      counter++;
+    }
+    if (counter > 1) {
+      cleanTitle = `${cleanTitle} ${counter - 1}`;
+    }
     const finalContent = content || `# ${cleanTitle}\n\nStart writing notes here...`;
     const now = new Date().toISOString();
 
     const result = await dbRun(
-      `INSERT INTO files (title, path, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-      [cleanTitle, finalPath, finalContent, now, now]
+      `INSERT INTO files (title, path, content, note_type, raw_file_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [cleanTitle, finalPath, finalContent, note_type, raw_file_id, now, now]
     );
 
     const fileId = result.lastID;
@@ -58,7 +73,7 @@ app.post('/api/files', async (req, res) => {
   }
 });
 
-// 3. GET /api/files/:id - Get single file
+// 3. GET /api/files/:id - Get single file with companion note details
 app.get('/api/files/:id', async (req, res) => {
   try {
     const file = await dbGet(`SELECT * FROM files WHERE id = ?`, [req.params.id]);
@@ -69,7 +84,28 @@ app.get('/api/files/:id', async (req, res) => {
       `SELECT * FROM links WHERE source_file_id = ?`,
       [file.id]
     );
-    res.json({ ...file, links });
+
+    // Resolve companion note if linked
+    let companionNote = null;
+    if (file.formal_file_id) {
+      companionNote = await dbGet(`SELECT id, title, path, updated_at FROM files WHERE id = ?`, [file.formal_file_id]);
+    } else if (file.raw_file_id) {
+      companionNote = await dbGet(`SELECT id, title, path, updated_at FROM files WHERE id = ?`, [file.raw_file_id]);
+    } else if (file.note_type !== 'formal') {
+      // Fallback check if formal note exists by raw_file_id match or title suffix
+      const potential = await dbGet(
+        `SELECT id, title, path, updated_at FROM files WHERE raw_file_id = ? OR title = ? LIMIT 1`,
+        [file.id, `${file.title} (Formal)`]
+      );
+      if (potential) {
+        companionNote = potential;
+        // Self-heal link in db
+        await dbRun(`UPDATE files SET formal_file_id = ? WHERE id = ?`, [potential.id, file.id]);
+        await dbRun(`UPDATE files SET raw_file_id = ?, note_type = 'formal' WHERE id = ?`, [file.id, potential.id]);
+      }
+    }
+
+    res.json({ ...file, links, companionNote });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -454,6 +490,321 @@ app.post('/api/files/:id/suggestions/reject-all', async (req, res) => {
       [fileId, fileId]
     );
     res.json({ success: true, message: 'All pending AI suggestions discarded' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
+// GROQ NOTE-SYNTHESIS SYSTEM ENDPOINTS (Raw -> Formal Companion Workflow)
+// ============================================================================
+
+// 12. POST /api/files/:id/synthesize/preview - Generate formal synthesis without mutating database
+app.post('/api/files/:id/synthesize/preview', async (req, res) => {
+  try {
+    const rawFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [req.params.id]);
+    if (!rawFile) {
+      return res.status(404).json({ error: 'Source note not found' });
+    }
+
+    if (!rawFile.content || rawFile.content.trim().length === 0) {
+      return res.status(400).json({ error: 'Source note content is empty. Add notes to synthesize.' });
+    }
+
+    // Retrieve all other vault titles for contextual cross-linking
+    const otherNotes = await dbAll(`SELECT title FROM files WHERE id != ?`, [rawFile.id]);
+    const existingTitles = otherNotes.map((n) => n.title);
+
+    // Call Groq synthesis provider (abstracted service)
+    const provider = new GroqSynthesisProvider();
+    const result = await provider.synthesize({
+      rawTitle: rawFile.title,
+      rawContent: rawFile.content,
+      existingTitles,
+    });
+
+    // Render structured JSON into textbook-grade Markdown
+    const renderedMarkdown = renderFormalMarkdown({
+      rawTitle: rawFile.title,
+      structuredData: result.structuredOutput,
+      model: result.model,
+      promptVersion: result.promptVersion,
+    });
+
+    // Check if formal note already exists for this raw note
+    const existingFormalNote = await dbGet(
+      `SELECT id, title, path, updated_at FROM files WHERE raw_file_id = ? OR id = ? OR title = ? LIMIT 1`,
+      [rawFile.id, rawFile.formal_file_id || 0, `${rawFile.title} (Formal)`]
+    );
+
+    res.json({
+      success: true,
+      rawNote: { id: rawFile.id, title: rawFile.title },
+      formalTitle: result.structuredOutput.formalTitle || `${rawFile.title} (Formal)`,
+      previewMarkdown: renderedMarkdown,
+      structuredOutput: result.structuredOutput,
+      promptVersion: result.promptVersion,
+      model: result.model,
+      existingFormalNote: existingFormalNote || null,
+    });
+  } catch (err) {
+    console.error('Synthesis preview error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 13. POST /api/files/:id/synthesize/save - Persist/update formal companion note & sync graph
+app.post('/api/files/:id/synthesize/save', async (req, res) => {
+  try {
+    const rawFileId = parseInt(req.params.id, 10);
+    const rawFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [rawFileId]);
+    if (!rawFile) {
+      return res.status(404).json({ error: 'Source raw note not found' });
+    }
+
+    const {
+      renderedMarkdown,
+      structuredOutput,
+      formalTitle: customTitle,
+      promptVersion = CURRENT_PROMPT_VERSION,
+      model = DEFAULT_GROQ_MODEL,
+      overwriteConfirmed = false,
+    } = req.body;
+
+    if (!renderedMarkdown || renderedMarkdown.trim().length === 0) {
+      return res.status(400).json({ error: 'Rendered markdown content is required.' });
+    }
+
+    // Determine target formal title
+    const formalTitle = (customTitle || structuredOutput?.formalTitle || `${rawFile.title} (Formal)`).trim();
+    const formalPath = `${formalTitle}.md`;
+    const now = new Date().toISOString();
+
+    // Check if formal note already exists
+    let existingFormal = await dbGet(
+      `SELECT * FROM files WHERE raw_file_id = ? OR id = ? OR title = ? LIMIT 1`,
+      [rawFileId, rawFile.formal_file_id || 0, formalTitle]
+    );
+
+    // If companion exists and user has not explicitly confirmed overwrite, prevent accidental loss
+    if (existingFormal && !overwriteConfirmed) {
+      return res.status(409).json({
+        error: 'A formal companion note already exists for this note.',
+        existingFormalNote: {
+          id: existingFormal.id,
+          title: existingFormal.title,
+          updated_at: existingFormal.updated_at,
+        },
+      });
+    }
+
+    let savedFormalFileId;
+    let isUpdate = false;
+
+    if (existingFormal) {
+      // Update existing formal note (RAW NOTE CONTENT REMAINS COMPLETELY UNTOUCHED)
+      await dbRun(
+        `UPDATE files SET title = ?, path = ?, content = ?, note_type = 'formal', raw_file_id = ?, updated_at = ? WHERE id = ?`,
+        [formalTitle, formalPath, renderedMarkdown, rawFileId, now, existingFormal.id]
+      );
+      savedFormalFileId = existingFormal.id;
+      isUpdate = true;
+    } else {
+      // Create new formal note record (RAW NOTE CONTENT REMAINS COMPLETELY UNTOUCHED)
+      const insertResult = await dbRun(
+        `INSERT INTO files (title, path, content, note_type, raw_file_id, created_at, updated_at) VALUES (?, ?, ?, 'formal', ?, ?, ?)`,
+        [formalTitle, formalPath, renderedMarkdown, rawFileId, now, now]
+      );
+      savedFormalFileId = insertResult.lastID;
+    }
+
+    // Update raw file's formal_file_id pointer without mutating raw file content
+    await dbRun(
+      `UPDATE files SET formal_file_id = ? WHERE id = ?`,
+      [savedFormalFileId, rawFileId]
+    );
+
+    // Compute version number for archival
+    const lastVersion = await dbGet(
+      `SELECT MAX(version_number) as max_v FROM synthesis_versions WHERE raw_file_id = ?`,
+      [rawFileId]
+    );
+    const nextVersion = (lastVersion?.max_v || 0) + 1;
+
+    // Archive version in synthesis_versions table
+    const versionResult = await dbRun(
+      `INSERT INTO synthesis_versions (raw_file_id, formal_file_id, version_number, prompt_version, model, raw_input, structured_output, rendered_markdown, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        rawFileId,
+        savedFormalFileId,
+        nextVersion,
+        promptVersion,
+        model,
+        rawFile.content,
+        JSON.stringify(structuredOutput || {}),
+        renderedMarkdown,
+        now,
+      ]
+    );
+
+    // Graph Synchronization with exponential backoff retry
+    const graphSyncResult = await syncGraphWithRetry(savedFormalFileId, renderedMarkdown, 3);
+
+    const savedFormalFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [savedFormalFileId]);
+
+    res.status(isUpdate ? 200 : 201).json({
+      success: true,
+      formalFile: savedFormalFile,
+      versionId: versionResult.lastID,
+      versionNumber: nextVersion,
+      isUpdate,
+      graphSynced: graphSyncResult.success,
+      graphSyncError: graphSyncResult.error || null,
+      message: isUpdate ? 'Formal note updated and version archived.' : 'Formal companion note created and linked.',
+    });
+  } catch (err) {
+    console.error('Synthesis save error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 14. POST /api/files/:id/synthesize/auto - Fast one-click synthesize & persist
+app.post('/api/files/:id/synthesize/auto', async (req, res) => {
+  try {
+    const rawFileId = parseInt(req.params.id, 10);
+    const { overwriteConfirmed = false } = req.body || {};
+
+    const rawFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [rawFileId]);
+    if (!rawFile) {
+      return res.status(404).json({ error: 'Source raw note not found' });
+    }
+
+    if (!rawFile.content || rawFile.content.trim().length === 0) {
+      return res.status(400).json({ error: 'Note is empty. Please add note content first.' });
+    }
+
+    // Check if formal note already exists and overwrite not confirmed
+    const existingFormal = await dbGet(
+      `SELECT id, title, path, updated_at FROM files WHERE raw_file_id = ? OR id = ? OR title = ? LIMIT 1`,
+      [rawFileId, rawFile.formal_file_id || 0, `${rawFile.title} (Formal)`]
+    );
+
+    if (existingFormal && !overwriteConfirmed) {
+      return res.status(409).json({
+        error: 'A formal note already exists. Please confirm overwrite in review mode.',
+        existingFormalNote: existingFormal,
+      });
+    }
+
+    const otherNotes = await dbAll(`SELECT title FROM files WHERE id != ?`, [rawFileId]);
+    const existingTitles = otherNotes.map((n) => n.title);
+
+    const provider = new GroqSynthesisProvider();
+    const result = await provider.synthesize({
+      rawTitle: rawFile.title,
+      rawContent: rawFile.content,
+      existingTitles,
+    });
+
+    const renderedMarkdown = renderFormalMarkdown({
+      rawTitle: rawFile.title,
+      structuredData: result.structuredOutput,
+      model: result.model,
+      promptVersion: result.promptVersion,
+    });
+
+    const formalTitle = (result.structuredOutput.formalTitle || `${rawFile.title} (Formal)`).trim();
+    const formalPath = `${formalTitle}.md`;
+    const now = new Date().toISOString();
+
+    let savedFormalFileId;
+    let isUpdate = false;
+
+    if (existingFormal) {
+      await dbRun(
+        `UPDATE files SET title = ?, path = ?, content = ?, note_type = 'formal', raw_file_id = ?, updated_at = ? WHERE id = ?`,
+        [formalTitle, formalPath, renderedMarkdown, rawFileId, now, existingFormal.id]
+      );
+      savedFormalFileId = existingFormal.id;
+      isUpdate = true;
+    } else {
+      const insertResult = await dbRun(
+        `INSERT INTO files (title, path, content, note_type, raw_file_id, created_at, updated_at) VALUES (?, ?, ?, 'formal', ?, ?, ?)`,
+        [formalTitle, formalPath, renderedMarkdown, rawFileId, now, now]
+      );
+      savedFormalFileId = insertResult.lastID;
+    }
+
+    await dbRun(`UPDATE files SET formal_file_id = ? WHERE id = ?`, [savedFormalFileId, rawFileId]);
+
+    const lastVersion = await dbGet(
+      `SELECT MAX(version_number) as max_v FROM synthesis_versions WHERE raw_file_id = ?`,
+      [rawFileId]
+    );
+    const nextVersion = (lastVersion?.max_v || 0) + 1;
+
+    await dbRun(
+      `INSERT INTO synthesis_versions (raw_file_id, formal_file_id, version_number, prompt_version, model, raw_input, structured_output, rendered_markdown, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        rawFileId,
+        savedFormalFileId,
+        nextVersion,
+        result.promptVersion,
+        result.model,
+        rawFile.content,
+        JSON.stringify(result.structuredOutput),
+        renderedMarkdown,
+        now,
+      ]
+    );
+
+    const graphSyncResult = await syncGraphWithRetry(savedFormalFileId, renderedMarkdown, 3);
+    const savedFormalFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [savedFormalFileId]);
+
+    res.status(isUpdate ? 200 : 201).json({
+      success: true,
+      formalFile: savedFormalFile,
+      versionNumber: nextVersion,
+      isUpdate,
+      graphSynced: graphSyncResult.success,
+      message: isUpdate ? 'Formal note regenerated & updated.' : 'Formal companion note synthesized & created!',
+    });
+  } catch (err) {
+    console.error('Synthesis auto error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 15. GET /api/files/:id/synthesis-history - Retrieve previous synthesis versions
+app.get('/api/files/:id/synthesis-history', async (req, res) => {
+  try {
+    const fileId = parseInt(req.params.id, 10);
+    const versions = await dbAll(
+      `SELECT sv.*, rf.title as raw_title, ff.title as formal_title
+       FROM synthesis_versions sv
+       LEFT JOIN files rf ON sv.raw_file_id = rf.id
+       LEFT JOIN files ff ON sv.formal_file_id = ff.id
+       WHERE sv.raw_file_id = ? OR sv.formal_file_id = ?
+       ORDER BY sv.version_number DESC`,
+      [fileId, fileId]
+    );
+    res.json(versions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 16. POST /api/files/:id/resync-graph - Retry graph links synchronization on demand
+app.post('/api/files/:id/resync-graph', async (req, res) => {
+  try {
+    const file = await dbGet(`SELECT * FROM files WHERE id = ?`, [req.params.id]);
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const result = await syncGraphWithRetry(file.id, file.content, 3);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

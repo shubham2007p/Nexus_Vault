@@ -5,9 +5,29 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { linkHighlightPlugin } from '../extensions/codemirrorLinkPlugin';
-import { Sparkles, Save, Check, Clock, FileText, ArrowUpRight, Network } from 'lucide-react';
+import {
+  Sparkles,
+  Save,
+  Check,
+  Clock,
+  FileText,
+  ArrowUpRight,
+  Network,
+  Zap,
+  BookOpen,
+  ArrowLeftRight,
+  ExternalLink
+} from 'lucide-react';
 
-export default function Editor({ file, onSave, onProcessAI, isAIProcessing, onOpenFullGraph }) {
+export default function Editor({
+  file,
+  onSave,
+  onProcessAI,
+  isAIProcessing,
+  onOpenFullGraph,
+  onOpenSynthesis,
+  onNavigateToFile,
+}) {
   const editorContainerRef = useRef(null);
   const editorViewRef = useRef(null);
   const [content, setContent] = useState('');
@@ -85,6 +105,9 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing, onOp
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const linkMatches = (content.match(/\[\[[^\[\]]+\]\]/g) || []).length;
 
+  const isFormalNote = file?.note_type === 'formal' || (file?.title && file.title.endsWith('(Formal)'));
+  const companion = file?.companionNote;
+
   if (!file) {
     return (
       <div className="flex-1 bg-[#131316] flex flex-col items-center justify-center p-8 text-[#71717a] select-none text-center">
@@ -139,7 +162,7 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing, onOp
           </div>
         </div>
 
-        {/* Standardized Action Controls */}
+        {/* Action Controls: Full Graph, Save, Synthesize, Discover Links */}
         <div className="flex items-center gap-2 shrink-0">
           {onOpenFullGraph && (
             <button
@@ -148,7 +171,7 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing, onOp
               title="Expand to Full Screen Graph (G)"
             >
               <Network className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">Full Graph</span>
+              <span className="hidden sm:inline">Graph</span>
             </button>
           )}
 
@@ -162,19 +185,80 @@ export default function Editor({ file, onSave, onProcessAI, isAIProcessing, onOp
             <span className="hidden sm:inline">Save</span>
           </button>
 
+          {/* GROQ NOTE SYNTHESIS BUTTON */}
+          {onOpenSynthesis && (
+            <button
+              onClick={() => onOpenSynthesis(file)}
+              className="h-7 px-3 rounded-md bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:via-orange-500 hover:to-amber-600 text-white font-medium text-xs border border-amber-400/30 shadow-md shadow-amber-950/40 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+              title={
+                isFormalNote
+                  ? 'Re-synthesize this formal companion note with Groq LPU'
+                  : 'Synthesize raw note into textbook-grade formal note with Groq LPU'
+              }
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-200 fill-amber-200/40" />
+              <span>{isFormalNote ? 'Regenerate Formal' : 'Synthesize Note'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => onProcessAI(file.id)}
             disabled={isAIProcessing}
-            className="h-7 px-3.5 rounded-md bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:via-indigo-500 hover:to-purple-500 text-white font-medium text-xs border border-indigo-400/30 shadow-md shadow-indigo-950/40 disabled:opacity-50 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+            className="h-7 px-3 rounded-md bg-[#1e1e24] hover:bg-[#27272e] text-[#d4d4d8] hover:text-[#f4f4f5] font-medium text-xs border border-[#2e2e36] shadow-sm disabled:opacity-50 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
             title="Discover AI link proposals for this note"
           >
-            {isAIProcessing && (
-              <span className="w-2.5 h-2.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-0.5" />
+            {isAIProcessing ? (
+              <span className="w-2.5 h-2.5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-0.5" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
             )}
-            <span>{isAIProcessing ? 'Discovering...' : 'Discover AI Links'}</span>
+            <span className="hidden sm:inline">{isAIProcessing ? 'Discovering...' : 'Links'}</span>
           </button>
         </div>
       </div>
+
+      {/* COMPANION NOTE LINK BANNER (Preserves explicit raw-to-formal relationship) */}
+      {companion && onNavigateToFile && (
+        <div className="h-8 px-6 bg-[#16161a] border-b border-[#24242b] flex items-center justify-between text-xs shrink-0 select-none">
+          <div className="flex items-center gap-2 truncate">
+            {isFormalNote ? (
+              <>
+                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25">
+                  Formal Note
+                </span>
+                <span className="text-[#8e8e98] text-[11px]">Companion to raw note:</span>
+                <button
+                  onClick={() => onNavigateToFile(companion.id)}
+                  className="font-medium text-white hover:text-amber-300 transition-colors flex items-center gap-1 group truncate"
+                  title={`Jump to original student notes: ${companion.title}`}
+                >
+                  <span className="truncate">"{companion.title}"</span>
+                  <ExternalLink className="w-3 h-3 text-[#71717a] group-hover:text-amber-300 shrink-0" />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                  Raw Note
+                </span>
+                <span className="text-[#8e8e98] text-[11px]">Academic companion note available:</span>
+                <button
+                  onClick={() => onNavigateToFile(companion.id)}
+                  className="font-medium text-white hover:text-amber-300 transition-colors flex items-center gap-1 group truncate"
+                  title={`Open formal textbook note: ${companion.title}`}
+                >
+                  <span className="truncate">"{companion.title}"</span>
+                  <ExternalLink className="w-3 h-3 text-[#71717a] group-hover:text-amber-300 shrink-0" />
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="text-[10px] text-[#71717a] font-mono hidden md:block">
+            Connected via Vault Graph
+          </div>
+        </div>
+      )}
 
       {/* CodeMirror Mounting Container with Centered Editorial Layout */}
       <div className="flex-1 overflow-auto bg-[#131316]" ref={editorContainerRef} />
