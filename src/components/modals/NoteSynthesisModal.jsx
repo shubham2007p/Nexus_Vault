@@ -193,33 +193,33 @@ export default function NoteSynthesisModal({
   if (!isOpen || !file) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[#151518] border border-[#2b2b34] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-[#f4f4f5]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#151518] border border-[#E3E5DF] dark:border-[#2b2b34] rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-[#242824] dark:text-[#f4f4f5]">
         
         {/* Header Bar */}
-        <div className="px-6 py-4 border-b border-[#26262c] flex items-center justify-between bg-[#121214] shrink-0">
+        <div className="px-6 py-4 border-b border-[#E3E5DF] dark:border-[#26262c] flex items-center justify-between bg-[#F7F7F4] dark:bg-[#121214] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500/20 via-orange-500/20 to-purple-500/20 border border-amber-500/30 flex items-center justify-center shadow-inner">
-              <Zap className="w-5 h-5 text-amber-400" />
+            <div className="w-9 h-9 rounded-xl bg-[#E7A23B]/15 border border-[#E7A23B]/30 flex items-center justify-center shadow-inner">
+              <Zap className="w-5 h-5 text-[#E7A23B]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-[#f4f4f5] tracking-tight">
+                <h2 className="text-base font-semibold text-[#242824] dark:text-[#f4f4f5] tracking-tight">
                   Groq Academic Note Synthesizer
                 </h2>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#E7A23B]/15 text-[#B47818] dark:text-amber-300 border border-[#E7A23B]/30 font-medium">
                   LPU Llama 3.3 70B
                 </span>
               </div>
-              <p className="text-xs text-[#a1a1aa] mt-0.5">
-                Elevate raw intuition in <span className="text-amber-300 font-medium font-mono">"{file.title}"</span> into a formal, textbook-grade companion note.
+              <p className="text-xs text-[#666B65] dark:text-[#a1a1aa] mt-0.5">
+                Elevate raw intuition in <span className="text-[#287D54] dark:text-amber-300 font-medium font-mono">"{file.title}"</span> into a formal, textbook-grade companion note.
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#71717a] hover:text-[#f4f4f5] hover:bg-[#222227] transition-colors"
+            className="p-1.5 rounded-lg text-[#666B65] dark:text-[#71717a] hover:text-[#242824] dark:hover:text-[#f4f4f5] hover:bg-[#F0F1ED] dark:hover:bg-[#222227] transition-colors"
             title="Close (Esc)"
           >
             <X className="w-4 h-4" />
@@ -227,30 +227,30 @@ export default function NoteSynthesisModal({
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col min-h-0 bg-[#141417]">
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col min-h-0 bg-white dark:bg-[#141417]">
           
           {/* STATE: IDLE - Choice between Review vs Auto-Save */}
           {status === 'idle' && (
             <div className="flex flex-col items-center justify-center py-8 text-center max-w-xl mx-auto space-y-6">
-              <div className="w-16 h-16 rounded-2xl bg-[#1b1b22] border border-[#2e2e38] flex items-center justify-center shadow-lg">
-                <Sparkles className="w-8 h-8 text-amber-400" />
+              <div className="w-16 h-16 rounded-2xl bg-[#F0F1ED] dark:bg-[#1b1b22] border border-[#E3E5DF] dark:border-[#2e2e38] flex items-center justify-center shadow-sm">
+                <Sparkles className="w-8 h-8 text-[#E7A23B]" />
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-[#f4f4f5]">
+                <h3 className="text-lg font-semibold text-[#242824] dark:text-[#f4f4f5]">
                   How would you like to synthesize this note?
                 </h3>
-                <p className="text-xs text-[#a1a1aa] leading-relaxed">
+                <p className="text-xs text-[#666B65] dark:text-[#a1a1aa] leading-relaxed">
                   Your raw student notes remain 100% untouched. Groq will generate a separate, formal companion note containing formal definitions, step-by-step LaTeX derivations, and vault graph links.
                 </p>
               </div>
 
               {existingNoteConflict && (
-                <div className="w-full p-3.5 bg-amber-950/30 border border-amber-500/30 rounded-xl text-xs text-amber-200 flex items-start gap-2.5 text-left">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="w-full p-3.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-500/30 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5 text-left">
+                  <AlertTriangle className="w-4 h-4 text-[#E7A23B] shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-amber-300">Companion Note Already Exists:</span>
-                    <p className="text-[11px] text-amber-200/80 mt-0.5">
+                    <span className="font-semibold text-amber-900 dark:text-amber-300">Companion Note Already Exists:</span>
+                    <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80 mt-0.5">
                       "{existingNoteConflict.title}" exists in your vault. Generating a new version will archive the previous version and update the companion note without affecting your raw note.
                     </p>
                   </div>
@@ -261,37 +261,37 @@ export default function NoteSynthesisModal({
                 {/* Option A: Review & Edit Before Approving */}
                 <button
                   onClick={startPreviewSynthesis}
-                  className="p-4 rounded-xl bg-[#1a1a20] hover:bg-[#202028] border border-[#2c2c36] hover:border-amber-500/50 flex flex-col items-start text-left transition-all group shadow-md"
+                  className="p-4 rounded-xl bg-[#F7F7F4] dark:bg-[#1a1a20] hover:bg-[#F0F1ED] dark:hover:bg-[#202028] border border-[#E3E5DF] dark:border-[#2c2c36] hover:border-[#E7A23B]/50 flex flex-col items-start text-left transition-all group shadow-sm"
                 >
                   <div className="flex items-center justify-between w-full mb-2">
-                    <span className="text-xs font-semibold text-white group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-semibold text-[#242824] dark:text-white group-hover:text-[#B47818] dark:group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#E7A23B]" />
                       Preview & Edit Mode
                     </span>
-                    <ArrowRight className="w-3.5 h-3.5 text-[#71717a] group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
+                    <ArrowRight className="w-3.5 h-3.5 text-[#666B65] dark:text-[#71717a] group-hover:text-[#E7A23B] group-hover:translate-x-0.5 transition-all" />
                   </div>
-                  <p className="text-[11px] text-[#8e8e98] leading-normal">
+                  <p className="text-[11px] text-[#666B65] dark:text-[#8e8e98] leading-normal">
                     Inspect the structured definitions, step-by-step math derivations, make manual edits, and approve before linking.
                   </p>
-                  <span className="mt-3 text-[10px] font-mono text-amber-400/90 font-medium">Recommended for precision</span>
+                  <span className="mt-3 text-[10px] font-mono text-[#B47818] dark:text-amber-400 font-medium">Recommended for precision</span>
                 </button>
 
                 {/* Option B: Fast Auto-Save */}
                 <button
                   onClick={() => handleQuickAutoSave(false)}
-                  className="p-4 rounded-xl bg-[#1d1b18] hover:bg-[#25221c] border border-amber-500/40 hover:border-amber-400 flex flex-col items-start text-left transition-all group shadow-sm cursor-pointer"
+                  className="p-4 rounded-xl bg-amber-50/50 dark:bg-[#1d1b18] hover:bg-amber-100/40 dark:hover:bg-[#25221c] border border-[#E7A23B]/30 hover:border-[#E7A23B] flex flex-col items-start text-left transition-all group shadow-sm cursor-pointer"
                 >
                   <div className="flex items-center justify-between w-full mb-2">
-                    <span className="text-xs font-semibold text-white group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-xs font-semibold text-[#242824] dark:text-white group-hover:text-[#B47818] dark:group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-[#E7A23B]" />
                       Quick Auto-Save
                     </span>
-                    <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition-all" />
+                    <ArrowRight className="w-3.5 h-3.5 text-[#E7A23B] group-hover:translate-x-0.5 transition-all" />
                   </div>
-                  <p className="text-xs text-[#a1a1aa] leading-normal">
+                  <p className="text-xs text-[#666B65] dark:text-[#a1a1aa] leading-normal">
                     One-click ultra-fast synthesis. Generates formal companion file directly into the vault and connects graph links.
                   </p>
-                  <span className="mt-3 text-[11px] font-mono text-emerald-400 font-medium">~1.2 seconds</span>
+                  <span className="mt-3 text-[11px] font-mono text-[#287D54] dark:text-emerald-400 font-medium">~1.2 seconds</span>
                 </button>
               </div>
 
@@ -416,17 +416,17 @@ export default function NoteSynthesisModal({
             <div className="flex flex-col h-full space-y-3">
               
               {/* Toolbar: Sub-tabs and Title editor */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-[#26262c] shrink-0">
-                <div className="flex items-center gap-1 bg-[#1a1a20] p-0.5 rounded-lg border border-[#2b2b35] text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-[#E3E5DF] dark:border-[#26262c] shrink-0">
+                <div className="flex items-center gap-1 bg-[#F0F1ED] dark:bg-[#1a1a20] p-0.5 rounded-lg border border-[#E3E5DF] dark:border-[#2b2b35] text-xs">
                   <button
                     onClick={() => setActiveTab('preview')}
                     className={`px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all ${
                       activeTab === 'preview'
-                        ? 'bg-[#282832] text-white shadow-sm'
-                        : 'text-[#8e8e98] hover:text-[#f4f4f5]'
+                        ? 'bg-white dark:bg-[#282832] text-[#242824] dark:text-white shadow-sm'
+                        : 'text-[#666B65] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#f4f4f5]'
                     }`}
                   >
-                    <Code2 className="w-3.5 h-3.5 text-amber-400" />
+                    <Code2 className="w-3.5 h-3.5 text-[#E7A23B]" />
                     <span>Editable Markdown</span>
                   </button>
 
@@ -434,11 +434,11 @@ export default function NoteSynthesisModal({
                     onClick={() => setActiveTab('structured')}
                     className={`px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all ${
                       activeTab === 'structured'
-                        ? 'bg-[#282832] text-white shadow-sm'
-                        : 'text-[#8e8e98] hover:text-[#f4f4f5]'
+                        ? 'bg-white dark:bg-[#282832] text-[#242824] dark:text-white shadow-sm'
+                        : 'text-[#666B65] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#f4f4f5]'
                     }`}
                   >
-                    <List className="w-3.5 h-3.5 text-purple-400" />
+                    <List className="w-3.5 h-3.5 text-[#287D54] dark:text-purple-400" />
                     <span>Structured Breakdown</span>
                   </button>
 
@@ -446,11 +446,11 @@ export default function NoteSynthesisModal({
                     onClick={() => setActiveTab('history')}
                     className={`px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all ${
                       activeTab === 'history'
-                        ? 'bg-[#282832] text-white shadow-sm'
-                        : 'text-[#8e8e98] hover:text-[#f4f4f5]'
+                        ? 'bg-white dark:bg-[#282832] text-[#242824] dark:text-white shadow-sm'
+                        : 'text-[#666B65] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#f4f4f5]'
                     }`}
                   >
-                    <History className="w-3.5 h-3.5 text-blue-400" />
+                    <History className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
                     <span>Versions ({historyList.length})</span>
                   </button>
                 </div>
@@ -458,12 +458,12 @@ export default function NoteSynthesisModal({
                 {/* Target Note Title */}
                 {activeTab !== 'history' && (
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-[#71717a]">Title:</span>
+                    <span className="text-[#666B65] dark:text-[#71717a]">Title:</span>
                     <input
                       type="text"
                       value={customTitle}
                       onChange={(e) => setCustomTitle(e.target.value)}
-                      className="bg-[#1a1a20] border border-[#2e2e38] rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-amber-500 font-mono max-w-xs truncate"
+                      className="bg-[#F7F7F4] dark:bg-[#1a1a20] border border-[#E3E5DF] dark:border-[#2e2e38] rounded-md px-2.5 py-1 text-xs text-[#242824] dark:text-white focus:outline-none focus:border-[#E7A23B] font-mono max-w-xs truncate"
                       placeholder="Formal Note Title"
                     />
                   </div>
@@ -473,14 +473,14 @@ export default function NoteSynthesisModal({
               {/* Tab 1: Editable Markdown */}
               {activeTab === 'preview' && (
                 <div className="flex-1 flex flex-col min-h-[350px] relative">
-                  <div className="flex items-center justify-between text-[11px] text-[#71717a] py-1 px-1">
+                  <div className="flex items-center justify-between text-[11px] text-[#666B65] dark:text-[#71717a] py-1 px-1">
                     <span>Markdown Output (Directly editable before saving to vault):</span>
                     <span className="font-mono">{editableMarkdown.length} characters</span>
                   </div>
                   <textarea
                     value={editableMarkdown}
                     onChange={(e) => setEditableMarkdown(e.target.value)}
-                    className="flex-1 w-full bg-[#111114] border border-[#26262c] rounded-xl p-4 text-xs font-mono text-[#e4e4e7] focus:outline-none focus:border-amber-500/50 resize-none leading-relaxed selection:bg-amber-500/20"
+                    className="flex-1 w-full bg-[#F7F7F4] dark:bg-[#111114] border border-[#E3E5DF] dark:border-[#26262c] rounded-xl p-4 text-xs font-mono text-[#242824] dark:text-[#e4e4e7] focus:outline-none focus:border-[#E7A23B]/60 resize-none leading-relaxed selection:bg-amber-500/20"
                     placeholder="Rendered markdown appears here..."
                   />
                 </div>
@@ -614,16 +614,16 @@ export default function NoteSynthesisModal({
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="px-6 py-3.5 border-t border-[#26262c] bg-[#121214] flex items-center justify-between shrink-0">
-          <div className="text-[11px] text-[#71717a] flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>Raw note <strong className="text-stone-300">"{file.title}"</strong> is immutable & preserved.</span>
+        <div className="px-6 py-3.5 border-t border-[#E3E5DF] dark:border-[#26262c] bg-[#F7F7F4] dark:bg-[#121214] flex items-center justify-between shrink-0">
+          <div className="text-[11px] text-[#666B65] dark:text-[#71717a] flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#287D54]"></span>
+            <span>Raw note <strong className="text-[#242824] dark:text-stone-300">"{file.title}"</strong> is immutable & preserved.</span>
           </div>
 
           <div className="flex items-center gap-2.5">
             <button
               onClick={onClose}
-              className="px-3.5 py-1.5 rounded-lg bg-[#1e1e24] hover:bg-[#282832] text-[#d4d4d8] hover:text-white text-xs font-medium border border-[#2e2e38] transition-colors"
+              className="px-3.5 py-1.5 rounded-lg bg-[#F0F1ED] dark:bg-[#1e1e24] hover:bg-[#E3E5DF] dark:hover:bg-[#282832] text-[#666B65] dark:text-[#d4d4d8] text-xs font-medium border border-[#E3E5DF] dark:border-[#2e2e38] transition-colors"
             >
               Cancel
             </button>
@@ -631,7 +631,7 @@ export default function NoteSynthesisModal({
             {status === 'review' && (
               <button
                 onClick={() => handleSaveSynthesis(false)}
-                className="px-4 py-1.5 rounded-lg bg-[#d97706] hover:bg-[#b45309] text-white text-xs font-semibold shadow-sm border border-amber-400/40 transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                className="px-4 py-1.5 rounded-lg bg-[#E7A23B] hover:bg-[#D28E2B] text-white text-xs font-semibold shadow-sm border border-[#E7A23B] transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Approve & Save to Vault</span>

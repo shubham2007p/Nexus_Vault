@@ -1,15 +1,29 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/jpeg" href="/nexus_vault_logo.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nexusvault — Capture freely. Discover the connections.</title>
+    <title>Nexus Vault — Lightweight, Approachable Note-Taking</title>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('nexus_theme');
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+          } else {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap" rel="stylesheet">
   </head>
-  <body class="bg-[#0F1013] text-[#F4F4F5] antialiased font-sans overflow-x-hidden selection:bg-emerald-500/20 selection:text-emerald-200">
+  <body class="bg-[#F7F7F4] dark:bg-[#111113] text-[#242824] dark:text-[#F4F4F5] antialiased font-sans overflow-x-hidden selection:bg-[#287D54]/15 selection:text-[#1F6342] dark:selection:bg-emerald-500/25 dark:selection:text-emerald-200">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

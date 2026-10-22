@@ -64,6 +64,40 @@ export default function App() {
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Theme state: defaults to light mode with persistent storage
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('nexus_theme') || 'light';
+    } catch (e) {
+      return 'light';
+    }
+  });
+
+  // Responsive sidebar and right inspector panel states
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth >= 768 : true;
+  });
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth >= 1200 : false;
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    }
+    try {
+      localStorage.setItem('nexus_theme', theme);
+    } catch (e) {}
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
@@ -372,53 +406,74 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#111113] text-[#f4f4f5] relative">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F7F7F4] dark:bg-[#111113] text-[#242824] dark:text-[#F4F4F5] relative">
       {/* Return to Product Overview floating pill */}
       <button
         onClick={handleReturnToLanding}
-        className="fixed bottom-4 left-4 z-40 px-3 py-1.5 rounded-full bg-[#1c1c20]/95 hover:bg-[#27272e] border border-[#3b3b45] text-xs font-medium text-stone-300 hover:text-white shadow-xl backdrop-blur-md flex items-center gap-1.5 transition-all cursor-pointer group"
-        title="Return to Nexusvault Website"
+        className="fixed bottom-4 left-4 z-20 px-3 py-1.5 rounded-full bg-white/95 dark:bg-[#1c1c20]/95 hover:bg-[#F0F1ED] dark:hover:bg-[#27272e] border border-[#E3E5DF] dark:border-[#3b3b45] text-xs font-medium text-[#666B65] dark:text-stone-300 hover:text-[#242824] dark:hover:text-white shadow-md backdrop-blur-sm flex items-center gap-1.5 transition-all cursor-pointer group"
+        title="Return to Nexus Vault Website"
       >
-        <ArrowLeft className="w-3.5 h-3.5 text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
+        <ArrowLeft className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
         <span>Website Overview</span>
       </button>
 
-      {/* Toast Notification Banner */}
+      {/* Toast Notification Banner (Restrained, accessible contrast) */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold border flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
+          className={`fixed top-4 right-4 z-50 px-3.5 py-2 rounded-lg shadow-lg text-xs font-medium border flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
             toast.type === 'success'
-              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/40'
+              ? 'bg-[#EBF5F0] dark:bg-emerald-950/90 text-[#1F6342] dark:text-emerald-200 border-[#287D54]/30 dark:border-emerald-500/40'
               : toast.type === 'error'
-              ? 'bg-rose-950/90 text-rose-200 border-rose-500/40'
-              : 'bg-violet-950/90 text-violet-200 border-violet-500/40'
+              ? 'bg-[#FDF2F2] dark:bg-rose-950/90 text-[#991B1B] dark:text-rose-200 border-[#D32F2F]/30 dark:border-rose-500/40'
+              : 'bg-[#FEF7EC] dark:bg-amber-950/90 text-[#9A6214] dark:text-amber-200 border-[#E7A23B]/30 dark:border-amber-500/40'
           }`}
         >
           {toast.type === 'error' ? (
-            <AlertCircle className="w-4 h-4 text-rose-400" />
+            <AlertCircle className="w-4 h-4 text-[#D32F2F] dark:text-rose-400 shrink-0" />
           ) : (
-            <Sparkles className="w-4 h-4 text-violet-400" />
+            <Sparkles className="w-4 h-4 text-[#287D54] dark:text-emerald-400 shrink-0" />
           )}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Left Pane: Vault Explorer (Desktop & Tablet) */}
-      <div className="hidden md:flex shrink-0 h-full">
+      {/* Mobile Backdrop for Sidebar Drawer */}
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/40 z-30 md:hidden backdrop-blur-xs transition-opacity"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Left Pane: Vault Explorer (In-flow on desktop, slide drawer on mobile) */}
+      <div
+        className={`${
+          isSidebarOpen
+            ? 'fixed inset-y-0 left-0 z-40 w-72 md:relative md:w-64 md:z-auto md:flex shrink-0 h-full shadow-xl md:shadow-none'
+            : 'hidden'
+        }`}
+      >
         <ErrorBoundary>
           <FileTree
             files={files}
             activeFileId={activeFileId}
-            onSelectFile={handleSelectFile}
+            onSelectFile={(id) => {
+              handleSelectFile(id);
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
             onCreateFile={handleCreateFile}
             onRenameFile={handleRenameFile}
             onDeleteFile={handleDeleteFile}
             onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onCloseSidebar={() => setIsSidebarOpen(false)}
           />
         </ErrorBoundary>
       </div>
 
-      {/* Center Pane: CodeMirror Markdown Editor (Flex-1 on all screens) */}
+      {/* Center Pane: Markdown Editor (Flex-1 on all screen sizes) */}
       <ErrorBoundary>
         <Editor
           file={activeFile}
@@ -428,21 +483,47 @@ export default function App() {
           onOpenFullGraph={() => setIsFullscreenGraph(true)}
           onOpenSynthesis={handleOpenSynthesis}
           onNavigateToFile={handleSelectFile}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isRightPanelOpen={isRightPanelOpen}
+          onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
         />
       </ErrorBoundary>
 
-      {/* Right Pane: Graph View + Backlinks Inspector (Large screens only) */}
-      <div className="hidden lg:flex w-80 flex-col h-full bg-[#151518] border-l border-[#26262c] overflow-hidden shrink-0">
+      {/* Mobile Backdrop for Right Inspector Drawer */}
+      {isRightPanelOpen && (
+        <div
+          onClick={() => setIsRightPanelOpen(false)}
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden backdrop-blur-xs transition-opacity"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Right Pane: Graph View + Backlinks (In-flow on large screens, slide drawer on tablet/mobile) */}
+      <div
+        className={`${
+          isRightPanelOpen
+            ? 'fixed inset-y-0 right-0 z-40 w-80 lg:relative lg:z-auto lg:flex flex-col h-full bg-[#F0F1ED] dark:bg-[#151518] border-l border-[#E3E5DF] dark:border-[#26262c] overflow-hidden shrink-0 shadow-xl lg:shadow-none'
+            : 'hidden'
+        }`}
+      >
         <ErrorBoundary>
           <GraphView
             graphData={graphData}
             globalGraphData={globalGraphData}
             activeFileId={activeFileId}
-            onSelectFile={handleSelectFile}
+            onSelectFile={(id) => {
+              handleSelectFile(id);
+              if (window.innerWidth < 1024) setIsRightPanelOpen(false);
+            }}
             showAILinks={showAILinksOnGraph}
             onToggleShowAILinks={setShowAILinksOnGraph}
             isFullscreen={isFullscreenGraph}
             onToggleFullscreen={setIsFullscreenGraph}
+            theme={theme}
+            onCloseRightPanel={() => setIsRightPanelOpen(false)}
           />
         </ErrorBoundary>
         <div className="flex-1 overflow-hidden min-h-0">
@@ -452,7 +533,10 @@ export default function App() {
               backlinks={backlinks}
               onAcceptLink={handleAcceptLink}
               onRejectLink={handleRejectLink}
-              onSelectFile={handleSelectFile}
+              onSelectFile={(id) => {
+                handleSelectFile(id);
+                if (window.innerWidth < 1024) setIsRightPanelOpen(false);
+              }}
               onProcessAI={handleProcessAI}
               isAIProcessing={isAIProcessing}
               showAILinks={showAILinksOnGraph}
@@ -460,6 +544,7 @@ export default function App() {
               onOpenAIReview={() => setIsAIReviewOpen(true)}
               onRejectAllLinks={handleRejectAllLinks}
               onAcceptAllLinks={handleAcceptAllLinks}
+              theme={theme}
             />
           </ErrorBoundary>
         </div>
@@ -472,6 +557,7 @@ export default function App() {
           onClose={() => setIsCmdPaletteOpen(false)}
           files={files}
           onSelectFile={handleSelectFile}
+          theme={theme}
         />
       </ErrorBoundary>
 
@@ -485,6 +571,7 @@ export default function App() {
         onRejectLink={handleRejectLink}
         onAcceptAll={handleAcceptAllLinks}
         onRejectAll={handleRejectAllLinks}
+        theme={theme}
       />
 
       {/* Groq Academic Note Synthesis Modal */}
@@ -494,6 +581,7 @@ export default function App() {
         file={synthesisTargetFile || activeFile}
         onSynthesisSuccess={handleSynthesisSuccess}
         onNavigateToFile={handleSelectFile}
+        theme={theme}
       />
     </div>
   );

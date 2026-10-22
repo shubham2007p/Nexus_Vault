@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { EditorState } from '@codemirror/state';
+import { EditorState, Compartment } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -11,12 +11,12 @@ import {
   Check,
   Clock,
   FileText,
-  ArrowUpRight,
   Network,
-  Zap,
-  BookOpen,
-  ArrowLeftRight,
-  ExternalLink
+  ExternalLink,
+  PanelLeft,
+  PanelRight,
+  Link2,
+  BookMarked
 } from 'lucide-react';
 
 export default function Editor({
@@ -27,9 +27,15 @@ export default function Editor({
   onOpenFullGraph,
   onOpenSynthesis,
   onNavigateToFile,
+  theme = 'light',
+  isSidebarOpen,
+  onToggleSidebar,
+  isRightPanelOpen,
+  onToggleRightPanel,
 }) {
   const editorContainerRef = useRef(null);
   const editorViewRef = useRef(null);
+  const themeCompartment = useRef(new Compartment());
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [saveState, setSaveState] = useState('saved');
@@ -43,6 +49,7 @@ export default function Editor({
     }
   }, [file?.id]);
 
+  // CodeMirror Initialization
   useEffect(() => {
     if (!editorContainerRef.current) return;
 
@@ -52,7 +59,7 @@ export default function Editor({
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown(),
-        oneDark,
+        themeCompartment.current.of(theme === 'dark' ? oneDark : []),
         linkHighlightPlugin,
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
@@ -77,6 +84,16 @@ export default function Editor({
     };
   }, [file?.id]);
 
+  // Dynamically reconfigure CodeMirror theme when light/dark mode toggles
+  useEffect(() => {
+    if (editorViewRef.current) {
+      editorViewRef.current.dispatch({
+        effects: themeCompartment.current.reconfigure(theme === 'dark' ? oneDark : []),
+      });
+    }
+  }, [theme]);
+
+  // Autosave Debounce (1000ms)
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -110,27 +127,38 @@ export default function Editor({
 
   if (!file) {
     return (
-      <div className="flex-1 bg-[#131316] flex flex-col items-center justify-center p-8 text-[#71717a] select-none text-center">
-        <div className="w-12 h-12 rounded-xl bg-[#1b1b1f] border border-[#26262c] flex items-center justify-center mb-3">
-          <FileText className="w-6 h-6 text-[#52525b]" />
+      <div className="flex-1 bg-white dark:bg-[#15161A] flex flex-col items-center justify-center p-8 text-[#878C85] dark:text-[#71717A] select-none text-center transition-colors">
+        <div className="w-12 h-12 rounded-xl bg-[#F0F1ED] dark:bg-[#1C1D22] border border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-center mb-3">
+          <FileText className="w-6 h-6 text-[#878C85] dark:text-[#71717A]" />
         </div>
-        <p className="text-sm font-medium text-[#d4d4d8]">No Note Open</p>
-        <p className="text-xs text-[#71717a] mt-1 max-w-xs">
-          Select a note from the explorer, use Quick Switcher (⌘K), or create a new note.
+        <p className="text-sm font-semibold text-[#242824] dark:text-[#F4F4F5]">No Note Selected</p>
+        <p className="text-xs text-[#666B65] dark:text-[#A1A1AA] mt-1 max-w-xs">
+          Select a note from the left sidebar, use Quick Switcher (⌘K), or create a new note.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-[#131316] flex flex-col h-full overflow-hidden border-r border-[#26262c]">
-      {/* Accessible semantic heading for canvas */}
+    <div className="flex-1 bg-white dark:bg-[#15161A] flex flex-col h-full overflow-hidden transition-colors">
+      {/* Semantic Screen Title */}
       <h1 className="sr-only">{title ? `${title} — Nexus Vault` : 'Note Workspace — Nexus Vault'}</h1>
 
       {/* Editor Header Toolbar */}
-      <div className="h-12 px-6 border-b border-[#26262c] bg-[#141417] flex items-center justify-between shrink-0 gap-4">
-        {/* Title Input & Save Metrics */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className="h-12 px-4 border-b border-[#E3E5DF] dark:border-[#272A32] bg-[#F7F7F4] dark:bg-[#17181C] flex items-center justify-between shrink-0 gap-3 transition-colors">
+        {/* Left: Sidebar toggle, Note Title Input & Save Status */}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="p-1.5 rounded-md text-[#666B65] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] hover:bg-[#E8EAE4] dark:hover:bg-[#202227] transition-colors cursor-pointer shrink-0"
+              title={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              aria-label="Toggle sidebar"
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+          )}
+
           <input
             type="text"
             value={title}
@@ -139,132 +167,131 @@ export default function Editor({
               setSaveState('dirty');
             }}
             placeholder="Untitled Note"
-            className="bg-transparent text-sm font-semibold text-[#f4f4f5] focus:outline-none focus:border-b-2 focus:border-purple-400 px-1 py-0.5 max-w-md truncate transition-all placeholder-[#71717a]"
+            className="bg-transparent text-sm md:text-base font-semibold text-[#242824] dark:text-[#F4F4F5] focus:outline-none max-w-xs md:max-w-md truncate placeholder-[#878C85] dark:placeholder-[#71717A]"
           />
 
-          <div className="flex items-center gap-2.5 text-xs">
+          {/* Unobtrusive Save Status */}
+          <div className="flex items-center gap-2 text-xs shrink-0">
             {saveState === 'saving' && (
-              <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
-                <Clock className="w-3.5 h-3.5 animate-spin" /> Saving...
+              <span className="flex items-center gap-1 text-[#E7A23B] dark:text-amber-400 font-medium">
+                <Clock className="w-3 h-3 animate-spin" />
+                <span className="hidden sm:inline">Saving...</span>
               </span>
             )}
             {saveState === 'saved' && (
-              <span className="flex items-center gap-1 text-emerald-400 font-medium text-xs">
-                <Check className="w-3.5 h-3.5" /> Saved
+              <span className="flex items-center gap-1 text-[#287D54] dark:text-emerald-400 font-medium">
+                <Check className="w-3 h-3" />
+                <span className="hidden sm:inline">Saved</span>
               </span>
             )}
             {saveState === 'dirty' && (
-              <span className="text-amber-400 text-xs font-mono">• Unsaved</span>
+              <span className="text-[#878C85] dark:text-[#71717A] text-xs font-mono">• Unsaved</span>
             )}
 
-            <div className="hidden md:flex items-center gap-2 text-xs text-[#94a3b8] border-l border-[#2e2e36] pl-2.5 font-mono">
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-[#4A4F49] dark:text-[#A1A1AA] border-l border-[#E3E5DF] dark:border-[#272A32] pl-2">
               <span>{wordCount} words</span>
-              <span>•</span>
-              <span>{linkMatches} links</span>
             </div>
           </div>
         </div>
 
-        {/* Action Controls: Full Graph, Save, Synthesize, Discover Links */}
-        <div className="flex items-center gap-2 shrink-0">
-          {onOpenFullGraph && (
-            <button
-              onClick={onOpenFullGraph}
-              className="h-7 px-2.5 rounded-md bg-[#1e1e24] hover:bg-[#27272e] text-[#d4d4d8] hover:text-[#f4f4f5] transition-colors border border-[#2e2e36] text-xs font-medium flex items-center gap-1.5 focus:outline-none shadow-sm cursor-pointer"
-              title="Expand to Full Screen Graph (G)"
-            >
-              <Network className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">Graph</span>
-            </button>
-          )}
-
+        {/* Right: Restrained, Solid Action Controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Save Button */}
           <button
             onClick={handleManualSave}
             disabled={saveState === 'saved'}
-            className="h-7 px-2.5 rounded-md bg-[#1e1e22] hover:bg-[#27272e] text-[#d4d4d8] disabled:opacity-30 transition-colors border border-[#2e2e36] text-xs font-medium flex items-center gap-1.5 focus:outline-none cursor-pointer"
+            className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E22] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#242824] dark:text-[#D4D4D8] disabled:opacity-35 transition-colors border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1 cursor-pointer shadow-2xs"
             title="Save Note (Ctrl+S)"
           >
-            <Save className="w-3.5 h-3.5" />
+            <Save className="w-3.5 h-3.5 text-[#4A4F49] dark:text-[#A1A1AA]" />
             <span className="hidden sm:inline">Save</span>
           </button>
 
-          {/* GROQ NOTE SYNTHESIS BUTTON: High contrast (5.6:1) WCAG compliant */}
+          {/* Groq Synthesis Action Button: Important secondary workflow, restrained amber */}
           {onOpenSynthesis && (
             <button
               onClick={() => onOpenSynthesis(file)}
-              className="h-7 px-3 rounded-md bg-[#b45309] hover:bg-[#92400e] text-amber-50 font-semibold text-xs border border-amber-600/50 shadow-sm active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+              className="h-7 px-2.5 rounded-md bg-[#FEF7EC] dark:bg-[#2B2317] hover:bg-[#FDEED3] dark:hover:bg-[#382C1B] text-[#9A6214] dark:text-amber-300 border border-[#E7A23B]/40 dark:border-amber-500/35 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
               title={
                 isFormalNote
                   ? 'Re-synthesize this formal companion note with Groq LPU'
                   : 'Synthesize raw note into textbook-grade formal note with Groq LPU'
               }
             >
-              <Zap className="w-3.5 h-3.5 text-amber-200 fill-amber-200/40" />
+              <Sparkles className="w-3.5 h-3.5 text-[#E7A23B] dark:text-amber-400" />
               <span>{isFormalNote ? 'Regenerate Formal' : 'Synthesize Note'}</span>
             </button>
           )}
 
+          {/* AI Backlink Discovery */}
           <button
             onClick={() => onProcessAI(file.id)}
             disabled={isAIProcessing}
-            className="h-7 px-3 rounded-md bg-[#1e1e24] hover:bg-[#27272e] text-[#e4e4e7] hover:text-[#f4f4f5] font-medium text-xs border border-[#363640] shadow-sm disabled:opacity-50 active:scale-[0.98] transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
-            title="Discover AI link proposals for this note"
+            className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E24] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#242824] dark:text-[#E4E4E7] border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-40"
+            title="Discover AI link recommendations for this note"
           >
             {isAIProcessing ? (
-              <span className="w-2.5 h-2.5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mr-0.5" />
+              <span className="w-3 h-3 border-2 border-[#287D54] border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              <Link2 className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
             )}
-            <span className="hidden sm:inline">{isAIProcessing ? 'Discovering...' : 'Links'}</span>
+            <span className="hidden sm:inline">{isAIProcessing ? 'Discovering...' : 'Discover Links'}</span>
           </button>
+
+          {/* Toggle Fullscreen Graph View */}
+          {onOpenFullGraph && (
+            <button
+              onClick={onOpenFullGraph}
+              className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E24] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#242824] dark:text-[#D4D4D8] border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1 cursor-pointer shadow-2xs"
+              title="Expand to Fullscreen Graph (G)"
+            >
+              <Network className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
+              <span className="hidden sm:inline">Graph</span>
+            </button>
+          )}
+
+          {/* Right Panel (Backlinks & Inspector) Toggle */}
+          {onToggleRightPanel && (
+            <button
+              onClick={onToggleRightPanel}
+              className="p-1.5 rounded-md text-[#4A4F49] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] hover:bg-[#E8EAE4] dark:hover:bg-[#202227] transition-colors cursor-pointer shrink-0 ml-0.5"
+              title={isRightPanelOpen ? 'Hide Backlinks & Graph' : 'Show Backlinks & Graph'}
+              aria-label="Toggle right inspector panel"
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* COMPANION NOTE LINK BANNER (Sentence case, WCAG compliant contrast) */}
+      {/* Subtle Companion Relationship Bar (Non-Intrusive, Quiet) */}
       {companion && onNavigateToFile && (
-        <div className="h-8 px-6 bg-[#16161a] border-b border-[#24242b] flex items-center justify-between text-xs shrink-0 select-none">
+        <div className="h-7 px-4 bg-[#F7F7F4] dark:bg-[#17181C] border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between text-xs shrink-0 select-none">
           <div className="flex items-center gap-2 truncate">
-            {isFormalNote ? (
-              <>
-                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 font-medium">
-                  Formal note
-                </span>
-                <span className="text-[#94a3b8] text-xs">Companion to raw note:</span>
-                <button
-                  onClick={() => onNavigateToFile(companion.id)}
-                  className="font-medium text-white hover:text-amber-300 transition-colors flex items-center gap-1 group truncate cursor-pointer"
-                  title={`Jump to original student notes: ${companion.title}`}
-                >
-                  <span className="truncate">"{companion.title}"</span>
-                  <ExternalLink className="w-3.5 h-3.5 text-[#94a3b8] group-hover:text-amber-300 shrink-0" />
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25 font-medium">
-                  Raw note
-                </span>
-                <span className="text-[#94a3b8] text-xs">Academic companion note available:</span>
-                <button
-                  onClick={() => onNavigateToFile(companion.id)}
-                  className="font-medium text-white hover:text-amber-300 transition-colors flex items-center gap-1 group truncate cursor-pointer"
-                  title={`Open formal textbook note: ${companion.title}`}
-                >
-                  <span className="truncate">"{companion.title}"</span>
-                  <ExternalLink className="w-3.5 h-3.5 text-[#94a3b8] group-hover:text-amber-300 shrink-0" />
-                </button>
-              </>
-            )}
+            <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-[#E3E5DF] dark:bg-[#272A32] text-[#4A4F49] dark:text-[#A1A1AA] font-medium">
+              {isFormalNote ? 'Formal Companion' : 'Raw Notes'}
+            </span>
+            <span className="text-[#4A4F49] dark:text-[#A1A1AA] text-xs">
+              {isFormalNote ? 'Derived from original note:' : 'Companion textbook note:'}
+            </span>
+            <button
+              onClick={() => onNavigateToFile(companion.id)}
+              className="font-medium text-[#287D54] dark:text-emerald-400 hover:underline flex items-center gap-1 truncate cursor-pointer"
+              title={`Switch to ${companion.title}`}
+            >
+              <span className="truncate">"{companion.title}"</span>
+              <ExternalLink className="w-3 h-3 shrink-0" />
+            </button>
           </div>
 
-          <div className="text-xs text-[#94a3b8] font-mono hidden md:block">
-            Connected via Vault Graph
-          </div>
+          <span className="text-xs text-[#4A4F49] dark:text-[#71717A] font-mono hidden md:inline">
+            Linked in Graph
+          </span>
         </div>
       )}
 
-      {/* CodeMirror Mounting Container with Centered Editorial Layout */}
-      <div className="flex-1 overflow-auto bg-[#131316]" ref={editorContainerRef} />
+      {/* Writing Canvas (CodeMirror Container) */}
+      <div className="flex-1 overflow-auto bg-white dark:bg-[#15161A] transition-colors" ref={editorContainerRef} />
     </div>
   );
 }

@@ -40,40 +40,40 @@ export default function AIReviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-150 select-none"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="ai-review-title"
     >
       <div
-        className="relative w-full max-w-xl bg-[#17171a] border border-[#2e2e36] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150"
+        className="relative w-full max-w-xl bg-white dark:bg-[#17171a] border border-[#E3E5DF] dark:border-[#2e2e36] rounded-2xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
-        <div className="px-5 py-4 border-b border-[#26262c] flex items-center justify-between bg-[#131316] shrink-0">
+        <div className="px-5 py-4 border-b border-[#E3E5DF] dark:border-[#26262c] flex items-center justify-between bg-[#F7F7F4] dark:bg-[#131316] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-400">
+            <div className="w-8 h-8 rounded-lg bg-[#E7A23B]/15 border border-[#E7A23B]/30 flex items-center justify-center text-[#E7A23B]">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="ai-review-title" className="text-sm font-semibold text-[#f4f4f5]">
+                <h2 id="ai-review-title" className="text-sm font-semibold text-[#242824] dark:text-[#f4f4f5]">
                   AI Suggested Connections
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25 font-semibold">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#E7A23B]/15 text-[#B47818] dark:text-amber-300 border border-[#E7A23B]/30 font-semibold">
                   {pendingList.length} Proposal{pendingList.length !== 1 ? 's' : ''}
                 </span>
               </div>
-              <p className="text-xs text-[#8e8e98] mt-0.5">
-                Review proposed connections for <span className="text-[#f4f4f5] font-medium">"{file?.title}"</span>
+              <p className="text-xs text-[#666B65] dark:text-[#8e8e98] mt-0.5">
+                Review proposed connections for <span className="text-[#242824] dark:text-[#f4f4f5] font-medium">"{file?.title}"</span>
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#71717a] hover:text-[#f4f4f5] hover:bg-[#222227] transition-colors"
+            className="p-1.5 rounded-lg text-[#666B65] dark:text-[#71717a] hover:text-[#242824] dark:hover:text-[#f4f4f5] hover:bg-[#F0F1ED] dark:hover:bg-[#222227] transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-4 h-4" />
@@ -81,9 +81,9 @@ export default function AIReviewModal({
         </div>
 
         {/* Info Notice */}
-        <div className="px-5 py-2.5 bg-amber-950/20 border-b border-amber-500/20 text-[11px] text-amber-200/90 flex items-center justify-between gap-2">
+        <div className="px-5 py-2.5 bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-500/20 text-[11px] text-amber-900 dark:text-amber-200/90 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <Sparkles className="w-3.5 h-3.5 text-[#E7A23B] shrink-0" />
             <span>
               These proposals are candidates. You decide what gets consolidated into your note or discarded from the graph.
             </span>
@@ -91,7 +91,7 @@ export default function AIReviewModal({
           {pendingList.length > 0 && onRejectAll && (
             <button
               onClick={() => onRejectAll(file?.id)}
-              className="text-[10px] text-rose-300 hover:text-rose-200 underline shrink-0 cursor-pointer"
+              className="text-[10px] text-[#D32F2F] hover:underline shrink-0 cursor-pointer font-medium"
             >
               Discard All Proposals
             </button>
@@ -99,11 +99,11 @@ export default function AIReviewModal({
         </div>
 
         {/* Proposals List */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-white dark:bg-[#17171a]">
           {pendingList.length === 0 ? (
-            <div className="p-8 text-center text-xs text-[#71717a] italic space-y-2">
+            <div className="p-8 text-center text-xs text-[#666B65] dark:text-[#71717a] italic space-y-2">
               <p>All AI connection proposals have been resolved.</p>
-              <p className="text-[11px] text-[#52525b]">
+              <p className="text-[11px] text-[#8C918B] dark:text-[#52525b]">
                 No pending proposals remain for this note.
               </p>
             </div>
@@ -111,16 +111,16 @@ export default function AIReviewModal({
             pendingList.map((link) => (
               <div
                 key={link.id}
-                className="p-3.5 rounded-xl bg-[#1b1b1f] border border-[#2e2e36] hover:border-amber-500/30 transition-all space-y-2.5 shadow-sm"
+                className="p-3.5 rounded-xl bg-[#F7F7F4] dark:bg-[#1b1b1f] border border-[#E3E5DF] dark:border-[#2e2e36] hover:border-[#E7A23B]/40 transition-all space-y-2.5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 pr-2 space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-amber-300">
+                      <span className="text-xs font-semibold text-[#287D54] dark:text-emerald-400">
                         [[{link.target_title}]]
                       </span>
                       {link.relationship && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-purple-500/15 text-purple-300 rounded border border-purple-500/25">
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-[#F0F1ED] dark:bg-purple-500/15 text-[#666B65] dark:text-purple-300 rounded border border-[#E3E5DF] dark:border-purple-500/25">
                           {link.relationship}
                         </span>
                       )}
@@ -131,7 +131,7 @@ export default function AIReviewModal({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => onAcceptLink(link.id)}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 transition-all text-xs font-medium flex items-center gap-1 shadow-sm cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-[#287D54]/10 hover:bg-[#287D54]/20 text-[#287D54] dark:text-emerald-300 border border-[#287D54]/30 transition-all text-xs font-medium flex items-center gap-1 shadow-sm cursor-pointer"
                       title="Confirm: Append to note and make solid link"
                     >
                       <Check className="w-3.5 h-3.5" />
@@ -139,7 +139,7 @@ export default function AIReviewModal({
                     </button>
                     <button
                       onClick={() => onRejectLink(link.id)}
-                      className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 transition-all text-xs font-medium flex items-center gap-1 shadow-sm cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg bg-[#D32F2F]/10 hover:bg-[#D32F2F]/20 text-[#D32F2F] dark:text-rose-300 border border-[#D32F2F]/30 transition-all text-xs font-medium flex items-center gap-1 shadow-sm cursor-pointer"
                       title="Discard proposal"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ export default function AIReviewModal({
                 </div>
 
                 {link.context && (
-                  <p className="text-xs text-[#d4d4d8] leading-relaxed italic border-l-2 border-amber-500/40 pl-2.5 bg-[#141417]/50 py-1 rounded-r">
+                  <p className="text-xs text-[#242824] dark:text-[#d4d4d8] leading-relaxed italic border-l-2 border-[#E7A23B]/60 pl-2.5 bg-white dark:bg-[#141417]/50 py-1 rounded-r border border-l-0 border-[#E3E5DF] dark:border-transparent">
                     "{link.context}"
                   </p>
                 )}
@@ -159,12 +159,12 @@ export default function AIReviewModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3 border-t border-[#26262c] flex items-center justify-between bg-[#131316] shrink-0 text-xs text-[#71717a]">
+        <div className="px-5 py-3 border-t border-[#E3E5DF] dark:border-[#26262c] flex items-center justify-between bg-[#F7F7F4] dark:bg-[#131316] shrink-0 text-xs text-[#666B65] dark:text-[#71717a]">
           <div className="flex items-center gap-2">
             {pendingList.length > 0 && onAcceptAll && (
               <button
                 onClick={onAcceptAll}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/35 text-emerald-300 border border-emerald-500/30 font-medium transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#287D54] text-white hover:bg-[#1F6342] font-medium transition-all cursor-pointer shadow-sm"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 <span>Confirm All ({pendingList.length})</span>
@@ -173,7 +173,7 @@ export default function AIReviewModal({
             {pendingList.length > 0 && onRejectAll && (
               <button
                 onClick={() => onRejectAll(file?.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/35 text-rose-300 border border-rose-500/30 font-medium transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F0F1ED] dark:bg-rose-600/20 hover:bg-[#E3E5DF] dark:hover:bg-rose-600/35 text-[#D32F2F] dark:text-rose-300 border border-[#E3E5DF] dark:border-rose-500/30 font-medium transition-all cursor-pointer shadow-sm"
               >
                 <X className="w-3.5 h-3.5" />
                 <span>Discard All</span>
@@ -183,7 +183,7 @@ export default function AIReviewModal({
 
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#222228] hover:bg-[#2b2b34] text-[#f4f4f5] border border-[#2e2e36] rounded-lg font-medium transition-all cursor-pointer"
+            className="px-4 py-1.5 bg-[#F0F1ED] dark:bg-[#222228] hover:bg-[#E3E5DF] dark:hover:bg-[#2b2b34] text-[#242824] dark:text-[#f4f4f5] border border-[#E3E5DF] dark:border-[#2e2e36] rounded-lg font-medium transition-all cursor-pointer"
           >
             Close
           </button>

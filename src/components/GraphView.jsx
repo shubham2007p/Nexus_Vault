@@ -25,6 +25,8 @@ export default function GraphView({
   onToggleShowAILinks,
   isFullscreen: externalIsFullscreen,
   onToggleFullscreen,
+  theme = 'light',
+  onCloseRightPanel,
 }) {
   const fgRef = useRef();
   const containerRef = useRef();
@@ -35,6 +37,8 @@ export default function GraphView({
   const [hoveredNode, setHoveredNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [internalIsFullscreen, setInternalIsFullscreen] = useState(false);
+
+  const isDark = theme === 'dark';
 
   const isFullscreen = externalIsFullscreen !== undefined ? externalIsFullscreen : internalIsFullscreen;
   const setIsFullscreen = (val) => {
@@ -377,45 +381,56 @@ export default function GraphView({
           </div>
         </div>
       ) : (
-        /* MINIMIZED HEADER - CLEAN & PRISTINE (NO ZOOM, NO DEPTH, NO LOCAL/GLOBAL) */
-        <div className="h-10 px-3.5 bg-[#121214] border-b border-[#26262c] flex items-center justify-between shrink-0">
+        /* MINIMIZED HEADER - CLEAN & PRISTINE */
+        <div className="h-10 px-3 bg-[#F0F1ED] dark:bg-[#17181C] border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between shrink-0 transition-colors">
           <div className="flex items-center gap-2">
-            <Network className="w-3.5 h-3.5 text-purple-400" />
-            <span className="font-semibold text-xs text-[#f4f4f5]">Graph View</span>
+            <Network className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
+            <span className="font-semibold text-xs text-[#242824] dark:text-[#F4F4F5]">Graph View</span>
           </div>
 
-          <button
-            onClick={() => setIsFullscreen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#1e1e24] hover:bg-[#282832] text-[#d4d4d8] hover:text-[#f4f4f5] border border-[#2e2e36] text-[11px] font-medium transition-all shadow-sm cursor-pointer"
-            title="Expand to Full Screen Graph (G)"
-          >
-            <Maximize2 className="w-3.5 h-3.5 text-purple-400" />
-            <span>Maximize</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsFullscreen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#1E1E24] hover:bg-[#E8EAE4] dark:hover:bg-[#282832] text-[#242824] dark:text-[#D4D4D8] border border-[#E3E5DF] dark:border-[#2E2E36] text-[11px] font-medium transition-all shadow-2xs cursor-pointer"
+              title="Expand to Fullscreen Graph (G)"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
+              <span>Fullscreen</span>
+            </button>
+            {onCloseRightPanel && (
+              <button
+                onClick={onCloseRightPanel}
+                className="lg:hidden p-1 text-[#878C85] hover:text-[#242824] dark:hover:text-white rounded"
+                title="Close right drawer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* Canvas or Empty State */}
       {nodes.length === 0 ? (
-        <div className="flex-1 bg-[#131316] flex flex-col items-center justify-center p-4 text-center">
-          <Network className="w-8 h-8 mb-2 text-[#3f3f46] animate-pulse" />
-          <p className="text-xs font-medium text-[#a1a1aa]">
+        <div className="flex-1 bg-[#F7F7F4] dark:bg-[#15161A] flex flex-col items-center justify-center p-4 text-center transition-colors">
+          <Network className="w-7 h-7 mb-2 text-[#878C85] dark:text-[#52525B]" />
+          <p className="text-xs font-semibold text-[#242824] dark:text-[#F4F4F5]">
             {perspective === 'local' ? 'No connections for this note' : 'No graphable notes in vault'}
           </p>
-          <p className="text-[11px] text-[#71717a] mt-1 max-w-[220px]">
+          <p className="text-[11px] text-[#666B65] dark:text-[#A1A1AA] mt-1 max-w-[220px]">
             {perspective === 'local'
               ? 'Add [[wikilinks]] or discover AI relationships in the inspector below.'
               : 'Create notes and links to visualize your knowledge graph clusters.'}
           </p>
         </div>
       ) : (
-        <div className="flex-1 w-full relative overflow-hidden bg-[#131316]">
+        <div className="flex-1 w-full relative overflow-hidden bg-[#F7F7F4] dark:bg-[#15161A] transition-colors">
           <ForceGraph2D
             ref={fgRef}
             width={dimensions.width}
             height={dimensions.height}
             graphData={safeGraphData}
-            backgroundColor="#131316"
+            backgroundColor={isDark ? '#15161A' : '#F7F7F4'}
             nodeRelSize={4.5}
             nodeVal={(node) => (node.isCenter ? 9 : node.degree ? 3 + Math.min(node.degree, 8) : 3.5)}
             nodeLabel=""
@@ -425,18 +440,15 @@ export default function GraphView({
             onNodeHover={(node) => setHoveredNode(node || null)}
             enableNodeDrag={true}
             onNodeDrag={(node) => {
-              // Pin node firmly to cursor coordinates while dragging
               node.fx = node.x;
               node.fy = node.y;
             }}
             onNodeDragEnd={(node) => {
-              // Fluid release: clear pinned coordinates so it floats organically
               node.fx = null;
               node.fy = null;
               fgRef.current?.d3ReheatSimulation?.();
             }}
             nodeCanvasObject={(node, ctx, globalScale) => {
-              // Cache live coordinates to prevent jumping
               if (node.x !== undefined && node.y !== undefined) {
                 nodePositionsRef.current.set(node.id, {
                   x: node.x,
@@ -446,7 +458,6 @@ export default function GraphView({
                 });
               }
 
-              // Reset collision bounding box registry on first node of each frame
               if (node === safeGraphData.nodes[0]) {
                 drawnLabelBoxesRef.current = [];
               }
@@ -459,61 +470,46 @@ export default function GraphView({
                 node.title &&
                 node.title.toLowerCase().includes(searchQuery.toLowerCase().trim());
 
-              // Node radius: compact, sleek Obsidian sizing
               const baseR = isCenter ? 5.8 : isHovered ? 5.2 : isUnresolved ? 3.2 : 3.8;
               const displayLabel = node.title || 'Untitled';
 
-              // 1. Halo aura on Hover, Center, or Search match
+              // 1. Subtle Selection Ring (Quiet, No Blurry Glow)
               if (isHovered || isCenter || isMatch) {
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, baseR + (isCenter ? 4.5 : 3.5), 0, 2 * Math.PI, false);
+                ctx.arc(node.x, node.y, baseR + (isCenter ? 4 : 3), 0, 2 * Math.PI, false);
                 ctx.fillStyle = isMatch
-                  ? 'rgba(234, 179, 8, 0.28)'
+                  ? 'rgba(231, 162, 59, 0.2)'
                   : isCenter
-                  ? 'rgba(167, 139, 250, 0.32)'
-                  : 'rgba(139, 92, 246, 0.22)';
+                  ? (isDark ? 'rgba(46, 164, 104, 0.25)' : 'rgba(40, 125, 84, 0.15)')
+                  : (isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)');
                 ctx.fill();
               }
 
               // 2. Node Circle Fill
               ctx.beginPath();
               ctx.arc(node.x, node.y, baseR, 0, 2 * Math.PI, false);
+              ctx.shadowBlur = 0; // Pure zero glow for crisp reading
 
               if (isCenter) {
-                ctx.fillStyle = '#ffffff';
-                ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-                ctx.shadowBlur = 8;
+                ctx.fillStyle = isDark ? '#2EA468' : '#287D54';
               } else if (isMatch) {
-                ctx.fillStyle = '#fde047';
-                ctx.shadowColor = '#fde047';
-                ctx.shadowBlur = 5;
+                ctx.fillStyle = '#E7A23B';
               } else if (isUnresolved) {
-                ctx.fillStyle = '#52525b';
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = isDark ? '#52525B' : '#9CA3AF';
               } else if (perspective === 'global') {
                 if ((node.degree || 0) >= 3) {
-                  ctx.fillStyle = '#c4b5fd';
-                  ctx.shadowColor = '#a78bfa';
-                  ctx.shadowBlur = 3;
+                  ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
                 } else if ((node.degree || 0) >= 1) {
-                  ctx.fillStyle = '#e4e4e7';
-                  ctx.shadowBlur = 0;
+                  ctx.fillStyle = isDark ? '#D4D4D8' : '#4B5563';
                 } else {
-                  ctx.fillStyle = '#71717a';
-                  ctx.shadowBlur = 0;
+                  ctx.fillStyle = isDark ? '#71717A' : '#9CA3AF';
                 }
               } else {
-                ctx.fillStyle = isHovered ? '#ffffff' : '#c4b5fd';
-                ctx.shadowBlur = isHovered ? 3 : 0;
-                ctx.shadowColor = '#c4b5fd';
+                ctx.fillStyle = isHovered ? (isDark ? '#FFFFFF' : '#1F6342') : (isDark ? '#A1A1AA' : '#4B5563');
               }
               ctx.fill();
-              ctx.shadowBlur = 0;
 
               // 3. Label Text & Non-Overlapping Pill Engine
-              // RULES:
-              // - In Local view & Fullscreen: Show labels with collision avoidance
-              // - In Global view: Priority given to Hovered, Center, Search match, and high-degree hubs
               const shouldAttemptLabel = isFullscreen
                 ? true
                 : perspective === 'local' || isHovered || isCenter || isMatch;
@@ -536,13 +532,10 @@ export default function GraphView({
                   y2: pillY + pillH + 2,
                 };
 
-                // Check collision against previously drawn label boxes
                 const hasCollision = drawnLabelBoxesRef.current.some(
                   (b) => !(myBox.x2 < b.x1 || myBox.x1 > b.x2 || myBox.y2 < b.y1 || myBox.y1 > b.y2)
                 );
 
-                // Priority: Hovered, Center, and Search matches always draw
-                // Other nodes are HIDDEN if they would overlap with an existing label!
                 const isHighPriority = isHovered || isCenter || isMatch;
 
                 if (isHighPriority || !hasCollision) {
@@ -550,12 +543,12 @@ export default function GraphView({
 
                   // Pill Background
                   ctx.fillStyle = isCenter
-                    ? 'rgba(24, 24, 28, 0.94)'
+                    ? (isDark ? 'rgba(23, 24, 28, 0.96)' : 'rgba(255, 255, 255, 0.96)')
                     : isMatch
-                    ? 'rgba(40, 32, 10, 0.94)'
+                    ? (isDark ? 'rgba(40, 32, 10, 0.94)' : 'rgba(254, 243, 199, 0.96)')
                     : isHovered
-                    ? 'rgba(26, 26, 32, 0.96)'
-                    : 'rgba(18, 18, 22, 0.88)';
+                    ? (isDark ? 'rgba(26, 26, 32, 0.96)' : 'rgba(240, 241, 237, 0.96)')
+                    : (isDark ? 'rgba(23, 24, 28, 0.92)' : 'rgba(255, 255, 255, 0.92)');
                   ctx.beginPath();
                   if (typeof ctx.roundRect === 'function') {
                     ctx.roundRect(pillX, pillY, pillW, pillH, 2.5);
@@ -566,12 +559,12 @@ export default function GraphView({
 
                   // Pill Border
                   ctx.strokeStyle = isCenter
-                    ? 'rgba(167, 139, 250, 0.6)'
+                    ? (isDark ? '#2EA468' : '#287D54')
                     : isMatch
-                    ? 'rgba(234, 179, 8, 0.7)'
+                    ? '#E7A23B'
                     : isHovered
-                    ? 'rgba(196, 181, 253, 0.7)'
-                    : 'rgba(255, 255, 255, 0.08)';
+                    ? (isDark ? '#A1A1AA' : '#666B65')
+                    : (isDark ? '#272A32' : '#E3E5DF');
                   ctx.lineWidth = 0.7 / (globalScale || 1);
                   ctx.stroke();
 
@@ -579,14 +572,14 @@ export default function GraphView({
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
                   ctx.fillStyle = isCenter
-                    ? '#ffffff'
+                    ? (isDark ? '#FFFFFF' : '#1F6342')
                     : isMatch
-                    ? '#fef08a'
+                    ? (isDark ? '#FEF08A' : '#92400E')
                     : isHovered
-                    ? '#ffffff'
+                    ? (isDark ? '#FFFFFF' : '#242824')
                     : isUnresolved
-                    ? '#a1a1aa'
-                    : '#d4d4d8';
+                    ? (isDark ? '#71717A' : '#878C85')
+                    : (isDark ? '#F4F4F5' : '#242824');
                   ctx.fillText(displayLabel, node.x, pillY + pillH / 2);
                 }
               }
@@ -615,7 +608,6 @@ export default function GraphView({
 
               const isPending = link.status === 'pending' || Number(link.is_ai_suggested) === 1 || link.is_ai_suggested === true;
               
-              // If AI links are turned OFF, do not draw pending AI links
               if (!showAILinks && isPending) {
                 return;
               }
@@ -629,21 +621,20 @@ export default function GraphView({
               ctx.lineTo(end.x, end.y);
 
               if (isPending) {
-                ctx.strokeStyle = '#f59e0b';
-                ctx.lineWidth = (isHoverConnected ? 1.6 : 1.2) / (globalScale || 1);
+                ctx.strokeStyle = isDark ? '#F59E0B' : '#E7A23B';
+                ctx.lineWidth = (isHoverConnected ? 1.5 : 1.1) / (globalScale || 1);
                 ctx.setLineDash([3, 3]);
               } else {
                 ctx.strokeStyle = isHoverConnected
-                  ? '#a78bfa'
-                  : 'rgba(113, 113, 122, 0.32)';
+                  ? (isDark ? '#2EA468' : '#287D54')
+                  : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.14)');
                 ctx.lineWidth = (isHoverConnected ? 1.5 : 0.9) / (globalScale || 1);
                 ctx.setLineDash([]);
               }
 
               ctx.stroke();
 
-              // 2. Edge Relationship / Connection Value Label
-              // Clearly visible on the graph when relationship exists!
+              // 2. Edge Relationship Label
               const relText = link.relationship
                 ? String(link.relationship).replace(/_/g, ' ')
                 : (perspective === 'local' && isHoverConnected ? 'links to' : null);
@@ -671,10 +662,10 @@ export default function GraphView({
                   const ry = midY - rh / 2;
 
                   ctx.fillStyle = isPending
-                    ? 'rgba(34, 25, 12, 0.94)'
+                    ? (isDark ? 'rgba(40, 32, 10, 0.95)' : 'rgba(254, 243, 199, 0.96)')
                     : isHoverConnected
-                    ? 'rgba(28, 22, 45, 0.96)'
-                    : 'rgba(18, 18, 22, 0.90)';
+                    ? (isDark ? 'rgba(26, 38, 30, 0.96)' : 'rgba(235, 245, 240, 0.96)')
+                    : (isDark ? 'rgba(23, 24, 28, 0.92)' : 'rgba(255, 255, 255, 0.94)');
 
                   ctx.beginPath();
                   if (typeof ctx.roundRect === 'function') {
@@ -685,18 +676,18 @@ export default function GraphView({
                   ctx.fill();
 
                   ctx.strokeStyle = isPending
-                    ? 'rgba(245, 158, 11, 0.7)'
+                    ? (isDark ? '#F59E0B' : '#E7A23B')
                     : isHoverConnected
-                    ? 'rgba(167, 139, 250, 0.7)'
-                    : 'rgba(255, 255, 255, 0.12)';
+                    ? (isDark ? '#2EA468' : '#287D54')
+                    : (isDark ? '#272A32' : '#E3E5DF');
                   ctx.lineWidth = 0.75 / (globalScale || 1);
                   ctx.stroke();
 
                   ctx.fillStyle = isPending
-                    ? '#fbbf24'
+                    ? (isDark ? '#FBBF24' : '#92400E')
                     : isHoverConnected
-                    ? '#ffffff'
-                    : '#d4d4d8';
+                    ? (isDark ? '#FFFFFF' : '#1F6342')
+                    : (isDark ? '#D4D4D8' : '#242824');
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
                   ctx.fillText(relText, midX, midY);
@@ -712,19 +703,19 @@ export default function GraphView({
 
           {/* Floating Note Navigator when in Fullscreen */}
           {isFullscreen && activeFileId && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#17171a]/95 backdrop-blur-md border border-[#2e2e36] rounded-xl shadow-2xl flex items-center gap-3.5 text-xs text-[#d4d4d8] animate-in fade-in slide-in-from-bottom-2 duration-150 z-10 pointer-events-auto">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-white/95 dark:bg-[#17171a]/95 backdrop-blur-md border border-[#E3E5DF] dark:border-[#2e2e36] rounded-xl shadow-xl flex items-center gap-3.5 text-xs text-[#242824] dark:text-[#d4d4d8] animate-in fade-in slide-in-from-bottom-2 duration-150 z-10 pointer-events-auto">
               <div className="flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5 text-purple-400" />
+                <FileText className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
                 <span>
-                  Active Note: <strong className="text-[#f4f4f5]">{activeNodeTitle}</strong>
+                  Active Note: <strong className="text-[#242824] dark:text-[#f4f4f5]">{activeNodeTitle}</strong>
                 </span>
               </div>
               <button
                 onClick={() => setIsFullscreen(false)}
-                className="px-3 py-1 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-lg font-medium text-[11px] transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-                title="Exit full screen and edit this note"
+                className="px-2.5 py-1 rounded-md bg-[#287D54] hover:bg-[#1F6342] text-white text-xs font-medium transition-colors cursor-pointer shadow-xs"
+                title="Exit fullscreen and edit this note"
               >
-                <span>Open in Editor</span>
+                <span>Edit Note</span>
               </button>
             </div>
           )}
