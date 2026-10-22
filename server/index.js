@@ -237,6 +237,133 @@ app.get('/api/files/:id/graph', async (req, res) => {
       }
     }
 
+    const depth = parseInt(req.query.depth || '1', 10);
+    if (depth >= 2) {
+      const hop1FileIds = Array.from(nodesMap.keys()).filter((k) => typeof k === 'number' && k !== centerId);
+      if (hop1FileIds.length > 0) {
+        const placeholders = hop1FileIds.map(() => '?').join(',');
+        const hop2Links = await dbAll(
+          `SELECT l.*, f1.title as source_title, f2.title as resolved_target_title
+           FROM links l
+           JOIN files f1 ON l.source_file_id = f1.id
+           LEFT JOIN files f2 ON l.target_file_id = f2.id
+           WHERE (l.source_file_id IN (${placeholders}) OR l.target_file_id IN (${placeholders}))
+           AND (l.status = 'accepted' OR l.is_ai_suggested = 1)`,
+          [...hop1FileIds, ...hop1FileIds]
+        );
+
+        for (const link of hop2Links) {
+          let sId = link.source_file_id;
+          let tId = link.target_file_id;
+          if (!tId) {
+            tId = `unresolved_${link.target_title}`;
+            if (!nodesMap.has(tId)) {
+              nodesMap.set(tId, {
+                id: tId,
+                title: link.target_title,
+                isUnresolved: true,
+                isHop2: true,
+              });
+            }
+          } else if (!nodesMap.has(tId)) {
+            nodesMap.set(tId, {
+              id: tId,
+              title: link.resolved_target_title || link.target_title,
+              isHop2: true,
+            });
+          }
+
+          if (!nodesMap.has(sId)) {
+            nodesMap.set(sId, {
+              id: sId,
+              title: link.source_title,
+              isHop2: true,
+            });
+          }
+
+          if (!edges.some((e) => e.id === link.id)) {
+            edges.push({
+              id: link.id,
+              source: sId,
+              target: tId,
+              relationship: link.relationship,
+              context: link.context,
+              status: link.status,
+              is_ai_suggested: link.is_ai_suggested,
+            });
+          }
+        }
+      }
+    }
+
+    res.json({
+      nodes: Array.from(nodesMap.values()),
+      edges,
+      links: edges,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7b. GET /api/graph - Get full global vault graph
+app.get('/api/graph', async (req, res) => {
+  try {
+    const allFiles = await dbAll(`SELECT id, title, path FROM files ORDER BY title ASC`);
+    const allLinks = await dbAll(`
+      SELECT l.*, f1.title as source_title, f2.title as resolved_target_title
+      FROM links l
+      JOIN files f1 ON l.source_file_id = f1.id
+      LEFT JOIN files f2 ON l.target_file_id = f2.id
+      WHERE l.status = 'accepted' OR l.is_ai_suggested = 1
+    `);
+
+    const nodesMap = new Map();
+    // Add all vault files as nodes so even disconnected files are visible in global clusters
+    for (const f of allFiles) {
+      nodesMap.set(f.id, {
+        id: f.id,
+        title: f.title,
+        path: f.path,
+        isCenter: false,
+        degree: 0,
+      });
+    }
+
+    const edges = [];
+    for (const l of allLinks) {
+      let targetId = l.target_file_id;
+      if (!targetId) {
+        targetId = `unresolved_${l.target_title}`;
+        if (!nodesMap.has(targetId)) {
+          nodesMap.set(targetId, {
+            id: targetId,
+            title: l.target_title,
+            isUnresolved: true,
+            degree: 0,
+          });
+        }
+      }
+
+      // Update degrees
+      if (nodesMap.has(l.source_file_id)) {
+        nodesMap.get(l.source_file_id).degree += 1;
+      }
+      if (nodesMap.has(targetId)) {
+        nodesMap.get(targetId).degree += 1;
+      }
+
+      edges.push({
+        id: l.id,
+        source: l.source_file_id,
+        target: targetId,
+        relationship: l.relationship,
+        context: l.context,
+        status: l.status,
+        is_ai_suggested: l.is_ai_suggested,
+      });
+    }
+
     res.json({
       nodes: Array.from(nodesMap.values()),
       edges,
@@ -313,6 +440,20 @@ app.post('/api/links/:id/reject', async (req, res) => {
     const linkId = req.params.id;
     await dbRun(`DELETE FROM links WHERE id = ?`, [linkId]);
     res.json({ success: true, message: 'Link rejected' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 11. POST /api/files/:id/suggestions/reject-all - Discard all pending AI links for this file
+app.post('/api/files/:id/suggestions/reject-all', async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    await dbRun(
+      `DELETE FROM links WHERE (source_file_id = ? OR target_file_id = ?) AND status = 'pending'`,
+      [fileId, fileId]
+    );
+    res.json({ success: true, message: 'All pending AI suggestions discarded' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

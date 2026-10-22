@@ -40,31 +40,31 @@ export default function CommandPalette({ isOpen, onClose, files = [], onSelectFi
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-24 select-none">
-      <div className="bg-[#1e1e1e] border border-[#383838] rounded-xl w-[520px] max-w-[90vw] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-start justify-center pt-24 select-none">
+      <div className="bg-[#17171a] border border-[#2e2e36] rounded-xl w-[520px] max-w-[90vw] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Input Bar */}
-        <div className="p-3 border-b border-[#2e2e2e] flex items-center gap-3 bg-[#181818]">
-          <Search className="w-4 h-4 text-[#e2e8f0] shrink-0" />
+        <div className="p-3 border-b border-[#26262c] flex items-center gap-3 bg-[#131316]">
+          <Search className="w-4 h-4 text-purple-400 shrink-0" />
           <input
             type="text"
             placeholder="Type note title... (Esc to close)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
-            className="w-full bg-transparent text-sm text-[#ffffff] placeholder-[#777777] focus:outline-none"
+            className="w-full bg-transparent text-sm text-[#f4f4f5] placeholder-[#5a5a64] focus:outline-none"
           />
           <button
             onClick={onClose}
-            className="p-1 hover:bg-[#2a2a2a] text-[#888888] hover:text-[#ffffff] rounded"
+            className="p-1 hover:bg-[#222227] text-[#71717a] hover:text-[#f4f4f5] rounded transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Results List */}
-        <div className="max-h-72 overflow-y-auto p-2 space-y-1">
+        <div className="max-h-72 overflow-y-auto p-2 space-y-0.5">
           {filtered.length === 0 ? (
-            <div className="p-4 text-center text-xs text-[#777777] italic">
+            <div className="p-4 text-center text-xs text-[#71717a] italic">
               No matching notes found
             </div>
           ) : (
@@ -75,26 +75,26 @@ export default function CommandPalette({ isOpen, onClose, files = [], onSelectFi
                   onSelectFile(file.id);
                   onClose();
                 }}
-                className={`flex items-center justify-between px-3 py-2 rounded text-xs cursor-pointer transition-colors ${
+                className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors ${
                   idx === selectedIndex
-                    ? 'bg-[#363636] text-[#ffffff] font-medium border border-[#444444]'
-                    : 'text-[#bbbbbb] hover:bg-[#262626]'
+                    ? 'bg-[#222228] text-[#f4f4f5] font-medium border border-purple-500/30'
+                    : 'text-[#a1a1aa] hover:bg-[#1c1c20] hover:text-[#f4f4f5] border border-transparent'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <FileText className="w-3.5 h-3.5 text-[#e2e8f0]" />
-                  <span className="font-medium">{file.title}</span>
+                <div className="flex items-center gap-2 truncate pr-2">
+                  <FileText className={`w-3.5 h-3.5 ${idx === selectedIndex ? 'text-purple-400' : 'text-[#71717a]'}`} />
+                  <span className="font-medium truncate">{file.title}</span>
                 </div>
-                <span className="text-[10px] text-[#777777] font-mono">{file.path}</span>
+                <span className="text-[10px] text-[#71717a] font-mono shrink-0">{file.path}</span>
               </div>
             ))
           )}
         </div>
 
         {/* Footer shortcuts */}
-        <div className="px-3 py-2 bg-[#141414] border-t border-[#2e2e2e] text-[10px] text-[#777777] flex justify-between">
-          <span>Navigate: <kbd className="px-1 bg-[#262626] text-[#cccccc] rounded">↑</kbd> <kbd className="px-1 bg-[#262626] text-[#cccccc] rounded">↓</kbd></span>
-          <span>Select: <kbd className="px-1 bg-[#262626] text-[#cccccc] rounded">↵ Enter</kbd></span>
+        <div className="px-3.5 py-2 bg-[#121214] border-t border-[#26262c] text-[10px] text-[#71717a] flex justify-between">
+          <span>Navigate: <kbd className="px-1.5 py-0.5 bg-[#1b1b1f] border border-[#2e2e36] text-[#d4d4d8] rounded font-mono">↑</kbd> <kbd className="px-1.5 py-0.5 bg-[#1b1b1f] border border-[#2e2e36] text-[#d4d4d8] rounded font-mono">↓</kbd></span>
+          <span>Select: <kbd className="px-1.5 py-0.5 bg-[#1b1b1f] border border-[#2e2e36] text-[#d4d4d8] rounded font-mono">↵ Enter</kbd></span>
         </div>
       </div>
     </div>
