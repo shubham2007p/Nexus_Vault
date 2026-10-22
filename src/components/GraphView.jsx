@@ -12,7 +12,8 @@ import {
   X,
   Maximize2,
   Minimize2,
-  FileText
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 import { forceCollide, forceCenter } from 'd3-force-3d';
 
@@ -32,11 +33,12 @@ export default function GraphView({
   const containerRef = useRef();
   const drawnLabelBoxesRef = useRef([]);
   const nodePositionsRef = useRef(new Map());
-  const [dimensions, setDimensions] = useState({ width: 320, height: 270 });
+  const [dimensions, setDimensions] = useState({ width: 320, height: 140 });
   const [perspective, setPerspective] = useState('local'); // 'local' | 'global'
   const [hoveredNode, setHoveredNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [internalIsFullscreen, setInternalIsFullscreen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const isDark = theme === 'dark';
 
@@ -58,9 +60,11 @@ export default function GraphView({
         height: Math.max(300, window.innerHeight - 52),
       });
     } else if (containerRef.current) {
+      const headerH = 36;
+      const totalH = isCollapsed ? 36 : 176;
       setDimensions({
         width: containerRef.current.clientWidth || 320,
-        height: Math.max(180, (containerRef.current.clientHeight || 288) - 40),
+        height: Math.max(100, totalH - headerH),
       });
     }
   };
@@ -72,13 +76,28 @@ export default function GraphView({
     return () => window.removeEventListener('resize', handleResize);
   }, [isFullscreen]);
 
+  // When collapsing / expanding the graph in sidebar, smoothly recalculate bounds
+  useEffect(() => {
+    if (!isFullscreen) {
+      updateBounds();
+      if (!isCollapsed) {
+        const timer = setTimeout(() => {
+          updateBounds();
+          fgRef.current?.d3ReheatSimulation?.();
+          fgRef.current?.zoomToFit?.(220, 16);
+        }, 80);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isCollapsed]);
+
   // When toggling fullscreen or perspective, adjust bounds & zoomToFit
   useEffect(() => {
     updateBounds();
     const timer = setTimeout(() => {
       updateBounds();
       fgRef.current?.d3ReheatSimulation?.();
-      fgRef.current?.zoomToFit?.(380, isFullscreen ? 55 : 28);
+      fgRef.current?.zoomToFit?.(320, isFullscreen ? 55 : 18);
     }, 120);
     return () => clearTimeout(timer);
   }, [isFullscreen, perspective]);
@@ -183,12 +202,16 @@ export default function GraphView({
         if (charge) {
           if (perspective === 'local') {
             const count = safeGraphData.nodes.length;
-            const centerRepel = count > 12 ? -360 : count > 6 ? -280 : -200;
-            const nodeRepel = count > 12 ? -160 : count > 6 ? -120 : -90;
+            const centerRepel = isFullscreen
+              ? (count > 12 ? -360 : count > 6 ? -280 : -200)
+              : (count > 12 ? -150 : count > 6 ? -110 : -80);
+            const nodeRepel = isFullscreen
+              ? (count > 12 ? -160 : count > 6 ? -120 : -90)
+              : (count > 12 ? -70 : count > 6 ? -50 : -35);
             charge
               .strength((node) => (node.isCenter ? centerRepel : nodeRepel))
-              .distanceMin(25)
-              .distanceMax(550);
+              .distanceMin(12)
+              .distanceMax(isFullscreen ? 550 : 250);
           } else {
             charge
               .strength((node) => -60 - Math.min((node.degree || 0) * 14, 85))
@@ -202,18 +225,18 @@ export default function GraphView({
         if (link) {
           const count = safeGraphData.nodes.length;
           const baselineDist = perspective === 'local'
-            ? (isFullscreen ? (count > 12 ? 120 : 105) : (count > 12 ? 85 : 75))
+            ? (isFullscreen ? (count > 12 ? 120 : 105) : (count > 12 ? 50 : 42))
             : 70;
           link
-            .distance((l) => (l.relationship ? baselineDist + 15 : baselineDist))
-            .strength(0.65);
+            .distance((l) => (l.relationship ? baselineDist + (isFullscreen ? 15 : 6) : baselineDist))
+            .strength(0.7);
         }
 
         // 4. Collision force: prevent nodes from ever overlapping each other physically
         fg.d3Force(
           'collide',
           forceCollide()
-            .radius((node) => (node.isCenter ? (isFullscreen ? 32 : 24) : (isFullscreen ? 20 : 16)))
+            .radius((node) => (node.isCenter ? (isFullscreen ? 32 : 16) : (isFullscreen ? 20 : 11)))
             .iterations(2)
         );
 
@@ -251,7 +274,7 @@ export default function GraphView({
       className={
         isFullscreen
           ? 'fixed inset-0 z-50 bg-[#111113] flex flex-col w-screen h-screen select-none animate-in fade-in duration-150'
-          : 'h-72 bg-[#151518] border-b border-[#26262c] flex flex-col relative select-none shrink-0'
+          : `${isCollapsed ? 'h-9' : 'h-44'} bg-[#F7F7F4] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col relative select-none shrink-0 transition-all duration-150`
       }
     >
       {/* Header Toolbar */}
@@ -381,26 +404,39 @@ export default function GraphView({
           </div>
         </div>
       ) : (
-        /* MINIMIZED HEADER - CLEAN & PRISTINE */
-        <div className="h-10 px-3 bg-[#F0F1ED] dark:bg-[#17181C] border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between shrink-0 transition-colors">
-          <div className="flex items-center gap-2">
-            <Network className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
+        /* MINIMIZED HEADER - COMPACT & CLEAN (h-9) */
+        <div className="h-9 px-3 bg-[#F0F1ED] dark:bg-[#17181C] border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between shrink-0 transition-colors">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1 -ml-1 text-[#4A4F49] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] rounded transition-colors cursor-pointer"
+              title={isCollapsed ? 'Expand graph view' : 'Collapse graph view'}
+              aria-label={isCollapsed ? 'Expand graph view' : 'Collapse graph view'}
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+            </button>
+            <Network className="w-3.5 h-3.5 text-[#287D54] dark:text-[#2EA468]" />
             <span className="font-semibold text-xs text-[#242824] dark:text-[#F4F4F5]">Graph View</span>
+            {safeGraphData.nodes.length > 0 && (
+              <span className="text-xs font-mono text-[#4A4F49] dark:text-[#A1A1AA]">
+                ({safeGraphData.nodes.length})
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
             <button
               onClick={() => setIsFullscreen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-[#1E1E24] hover:bg-[#E8EAE4] dark:hover:bg-[#282832] text-[#242824] dark:text-[#D4D4D8] border border-[#E3E5DF] dark:border-[#2E2E36] text-[11px] font-medium transition-all shadow-2xs cursor-pointer"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white dark:bg-[#1E1E24] hover:bg-[#E8EAE4] dark:hover:bg-[#282832] text-[#242824] dark:text-[#D4D4D8] border border-[#E3E5DF] dark:border-[#2E2E36] text-xs font-medium transition-all shadow-2xs cursor-pointer"
               title="Expand to Fullscreen Graph (G)"
             >
-              <Maximize2 className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
+              <Maximize2 className="w-3 h-3 text-[#287D54] dark:text-[#2EA468]" />
               <span>Fullscreen</span>
             </button>
             {onCloseRightPanel && (
               <button
                 onClick={onCloseRightPanel}
-                className="lg:hidden p-1 text-[#878C85] hover:text-[#242824] dark:hover:text-white rounded"
+                className="lg:hidden p-1 text-[#4A4F49] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-white rounded"
                 title="Close right drawer"
               >
                 <X className="w-3.5 h-3.5" />
@@ -410,21 +446,22 @@ export default function GraphView({
         </div>
       )}
 
-      {/* Canvas or Empty State */}
-      {nodes.length === 0 ? (
-        <div className="flex-1 bg-[#F7F7F4] dark:bg-[#15161A] flex flex-col items-center justify-center p-4 text-center transition-colors">
-          <Network className="w-7 h-7 mb-2 text-[#878C85] dark:text-[#52525B]" />
-          <p className="text-xs font-semibold text-[#242824] dark:text-[#F4F4F5]">
-            {perspective === 'local' ? 'No connections for this note' : 'No graphable notes in vault'}
-          </p>
-          <p className="text-[11px] text-[#666B65] dark:text-[#A1A1AA] mt-1 max-w-[220px]">
-            {perspective === 'local'
-              ? 'Add [[wikilinks]] or discover AI relationships in the inspector below.'
-              : 'Create notes and links to visualize your knowledge graph clusters.'}
-          </p>
-        </div>
-      ) : (
-        <div className="flex-1 w-full relative overflow-hidden bg-[#F7F7F4] dark:bg-[#15161A] transition-colors">
+      {/* Canvas or Empty State (Hidden when collapsed) */}
+      {!isCollapsed && (
+        nodes.length === 0 ? (
+          <div className="flex-1 bg-[#F7F7F4] dark:bg-[#15161A] flex flex-col items-center justify-center p-3 text-center transition-colors">
+            <Network className="w-5 h-5 mb-1.5 text-[#4A4F49] dark:text-[#52525B]" />
+            <p className="text-xs font-semibold text-[#242824] dark:text-[#F4F4F5]">
+              {perspective === 'local' ? 'No connections' : 'No graphable notes'}
+            </p>
+            <p className="text-xs text-[#4A4F49] dark:text-[#A1A1AA] mt-0.5 max-w-[200px]">
+              {perspective === 'local'
+                ? 'Add [[wikilinks]] or discover AI links below.'
+                : 'Create notes to visualize clusters.'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex-1 w-full relative overflow-hidden bg-[#F7F7F4] dark:bg-[#15161A] transition-colors">
           <ForceGraph2D
             ref={fgRef}
             width={dimensions.width}
@@ -720,18 +757,19 @@ export default function GraphView({
             </div>
           )}
         </div>
-      )}
-    </div>
-  );
+      )
+    )}
+  </div>
+);
 
   // When isFullscreen is true, render a placeholder in the sidebar and portal the full screen graph to document.body
   if (isFullscreen) {
     return (
       <>
-        <div className="h-72 bg-[#121214] border-b border-[#26262c] flex flex-col items-center justify-center p-4 text-center select-none shrink-0">
-          <Network className="w-6 h-6 text-purple-400/60 mb-2 animate-pulse" />
-          <span className="text-xs font-medium text-[#a1a1aa]">Graph View Maximized</span>
-          <span className="text-[11px] text-[#52525b] mt-0.5">Press Esc or click Minimize to exit full screen</span>
+        <div className="h-44 bg-[#F0F1ED] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col items-center justify-center p-4 text-center select-none shrink-0">
+          <Network className="w-6 h-6 text-[#287D54] dark:text-[#2EA468] mb-2 animate-pulse" />
+          <span className="text-xs font-semibold text-[#242824] dark:text-[#F4F4F5]">Graph View Maximized</span>
+          <span className="text-xs text-[#4A4F49] dark:text-[#A1A1AA] mt-0.5">Press Esc or click Minimize to exit full screen</span>
         </div>
         {createPortal(graphContent, document.body)}
       </>

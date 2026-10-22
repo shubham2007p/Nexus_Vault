@@ -51,56 +51,60 @@ export default function Backlinks({
 
   return (
     <div className="w-full flex flex-col h-full select-none overflow-hidden bg-[#F0F1ED] dark:bg-[#151518] transition-colors">
-      {/* Header with Backlinks vs Inspector Tabs & AI Toggle */}
-      <div className="h-11 px-2.5 border-b border-[#E3E5DF] dark:border-[#26262C] flex items-center justify-between shrink-0 bg-[#F0F1ED] dark:bg-[#17181C] gap-1 transition-colors">
-        {/* Tab Switcher */}
-        <div className="flex items-center p-0.5 bg-[#E8EAE4] dark:bg-[#1b1b1f] border border-[#E3E5DF] dark:border-[#26262c] rounded-lg text-xs">
+      {/* Header with Backlinks vs Inspector Tabs & AI Toggle - Consistent Toolbar Row */}
+      <div className="h-10 px-2.5 border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between shrink-0 bg-[#F0F1ED] dark:bg-[#17181C] gap-1.5 transition-colors">
+        {/* Tab Switcher - Exactly h-7 */}
+        <div className="h-7 p-0.5 bg-[#E8EAE4] dark:bg-[#1b1b1f] border border-[#E3E5DF] dark:border-[#272A32] rounded-md text-xs flex items-center shrink min-w-0">
           <button
             onClick={() => setActiveTab('backlinks')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+            className={`h-full flex items-center gap-1.5 px-2 rounded-[4px] text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'backlinks'
                 ? 'bg-white dark:bg-[#27272e] text-[#242824] dark:text-[#f4f4f5] shadow-2xs font-semibold'
-                : 'text-[#666B65] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#d4d4d8]'
+                : 'text-[#4A4F49] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#d4d4d8]'
             }`}
           >
-            <Link2 className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
+            <Link2 className="w-3.5 h-3.5 text-[#287D54] dark:text-[#2EA468] shrink-0" />
             <span>Backlinks</span>
-            <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-[#F0F1ED] dark:bg-[#151518] text-[#666B65] dark:text-[#a1a1aa] ml-0.5">
+            <span className="text-xs font-mono px-1 py-0 rounded bg-[#F0F1ED] dark:bg-[#151518] text-[#4A4F49] dark:text-[#a1a1aa] ml-0.5 font-medium">
               {acceptedLinks.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('inspector')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+            className={`h-full flex items-center gap-1.5 px-2 rounded-[4px] text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'inspector'
                 ? 'bg-white dark:bg-[#27272e] text-[#242824] dark:text-[#f4f4f5] shadow-2xs font-semibold'
-                : 'text-[#666B65] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#d4d4d8]'
+                : 'text-[#4A4F49] dark:text-[#8e8e98] hover:text-[#242824] dark:hover:text-[#d4d4d8]'
             }`}
           >
-            <Sliders className="w-3.5 h-3.5 text-[#E7A23B] dark:text-amber-400" />
+            <Sliders className="w-3.5 h-3.5 text-[#E7A23B] dark:text-amber-400 shrink-0" />
             <span>Inspector</span>
             {pendingLinks.length > 0 && (
-              <span className="text-[11px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-[#B45309] dark:text-amber-300 ml-0.5 font-semibold">
+              <span className="text-xs font-mono px-1 py-0 rounded bg-amber-500/20 text-[#9A6214] dark:text-amber-300 ml-0.5 font-semibold">
                 {pendingLinks.length}
               </span>
             )}
           </button>
         </div>
 
-        {/* AI Graph Links ON/OFF Switch */}
+        {/* AI Graph Links ON/OFF Switch - Exactly h-7 matching height, whitespace-nowrap */}
         {onToggleShowAILinks && (
           <button
             onClick={() => onToggleShowAILinks(!showAILinks)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-all cursor-pointer ${
+            className={`h-7 px-2 flex items-center gap-1.5 rounded-md text-xs font-medium border whitespace-nowrap shrink-0 transition-colors cursor-pointer shadow-2xs select-none ${
               showAILinks
-                ? 'bg-[#FEF7EC] dark:bg-amber-500/15 text-[#9A6214] dark:text-amber-300 border-[#E7A23B]/40 dark:border-amber-500/35 shadow-2xs'
-                : 'bg-white dark:bg-[#1b1b1f] text-[#878C85] dark:text-[#71717a] border-[#E3E5DF] dark:border-[#2e2e36] hover:text-[#242824] dark:hover:text-[#a1a1aa]'
+                ? 'bg-[#FEF7EC] dark:bg-[#2B2317] text-[#9A6214] dark:text-amber-300 border-[#E7A23B]/40 dark:border-amber-500/35'
+                : 'bg-white dark:bg-[#1b1b1f] text-[#525852] dark:text-[#71717a] border-[#E3E5DF] dark:border-[#272A32] hover:bg-[#F0F1ED] dark:hover:bg-[#222228]'
             }`}
             title={`Toggle AI recommended links on graph (Currently ${showAILinks ? 'ON' : 'OFF'})`}
+            aria-label={`Toggle AI graph links (${showAILinks ? 'ON' : 'OFF'})`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${showAILinks ? 'bg-[#E7A23B] dark:bg-amber-400' : 'bg-[#878C85] dark:bg-[#52525b]'}`} />
-            <span>AI Graph: {showAILinks ? 'ON' : 'OFF'}</span>
+            <Sparkles className={`w-3 h-3 shrink-0 ${showAILinks ? 'text-[#E7A23B] dark:text-amber-400' : 'text-[#8C918B] dark:text-[#52525b]'}`} />
+            <span>AI Graph:</span>
+            <span className={`font-mono text-xs font-bold ${showAILinks ? 'text-[#9A6214] dark:text-amber-300' : 'text-[#8C918B] dark:text-[#71717a]'}`}>
+              {showAILinks ? 'ON' : 'OFF'}
+            </span>
           </button>
         )}
       </div>
