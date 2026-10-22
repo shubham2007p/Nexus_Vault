@@ -403,20 +403,22 @@ export default function App() {
         </div>
       )}
 
-      {/* Left Pane: Vault Explorer */}
-      <ErrorBoundary>
-        <FileTree
-          files={files}
-          activeFileId={activeFileId}
-          onSelectFile={handleSelectFile}
-          onCreateFile={handleCreateFile}
-          onRenameFile={handleRenameFile}
-          onDeleteFile={handleDeleteFile}
-          onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
-        />
-      </ErrorBoundary>
+      {/* Left Pane: Vault Explorer (Desktop & Tablet) */}
+      <div className="hidden md:flex shrink-0 h-full">
+        <ErrorBoundary>
+          <FileTree
+            files={files}
+            activeFileId={activeFileId}
+            onSelectFile={handleSelectFile}
+            onCreateFile={handleCreateFile}
+            onRenameFile={handleRenameFile}
+            onDeleteFile={handleDeleteFile}
+            onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
+          />
+        </ErrorBoundary>
+      </div>
 
-      {/* Center Pane: CodeMirror Markdown Editor */}
+      {/* Center Pane: CodeMirror Markdown Editor (Flex-1 on all screens) */}
       <ErrorBoundary>
         <Editor
           file={activeFile}
@@ -429,8 +431,8 @@ export default function App() {
         />
       </ErrorBoundary>
 
-      {/* Right Pane: Graph View + Backlinks Inspector */}
-      <div className="w-80 flex flex-col h-full bg-[#151518] border-l border-[#26262c] overflow-hidden shrink-0">
+      {/* Right Pane: Graph View + Backlinks Inspector (Large screens only) */}
+      <div className="hidden lg:flex w-80 flex-col h-full bg-[#151518] border-l border-[#26262c] overflow-hidden shrink-0">
         <ErrorBoundary>
           <GraphView
             graphData={graphData}

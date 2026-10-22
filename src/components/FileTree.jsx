@@ -53,7 +53,7 @@ export default function FileTree({
             </div>
             <div className="flex items-center gap-1.5 truncate">
               <span className="group-hover:text-purple-200 transition-colors">Word Explorer</span>
-              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 shrink-0">
+              <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 shrink-0">
                 v1.2
               </span>
             </div>
@@ -86,7 +86,7 @@ export default function FileTree({
                 </div>
                 <span className="text-[#8e8e98] group-hover:text-[#d4d4d8] transition-colors">Search notes...</span>
               </div>
-              <span className="text-[10px] text-[#5a5a64] group-hover:text-[#8e8e98] font-mono">
+              <span className="text-xs text-[#94a3b8] group-hover:text-[#f4f4f5] font-mono">
                 Find
               </span>
             </button>
@@ -155,11 +155,11 @@ export default function FileTree({
                     />
                     <span className="truncate">{file.title}</span>
                     {file.note_type === 'formal' || (file.title && file.title.includes('(Formal)')) ? (
-                      <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0">
+                      <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0 font-medium">
                         Formal
                       </span>
                     ) : file.formal_file_id ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Has Formal Companion Note" />
+                      <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Has Formal Companion Note" />
                     ) : null}
                   </div>
 
@@ -195,9 +195,9 @@ export default function FileTree({
         </div>
 
         {/* Footer info */}
-        <div className="h-10 px-3.5 border-t border-[#26262c] text-[11px] text-[#71717a] flex justify-between items-center bg-[#121214] shrink-0">
+        <div className="h-10 px-3.5 border-t border-[#26262c] text-xs text-[#94a3b8] flex justify-between items-center bg-[#121214] shrink-0 font-medium">
           <span>{safeFiles.length} Notes in Vault</span>
-          <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-400">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Online</span>
           </div>

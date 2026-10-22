@@ -18,5 +18,6 @@ server/vault.db-journal
 
 # Scratch & Temporary
 scratch/
+.taste-skill/
 .DS_Store
 Thumbs.db

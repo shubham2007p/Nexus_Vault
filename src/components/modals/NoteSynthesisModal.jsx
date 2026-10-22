@@ -207,7 +207,7 @@ export default function NoteSynthesisModal({
                 <h2 className="text-base font-semibold text-[#f4f4f5] tracking-tight">
                   Groq Academic Note Synthesizer
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
                   LPU Llama 3.3 70B
                 </span>
               </div>
@@ -279,7 +279,7 @@ export default function NoteSynthesisModal({
                 {/* Option B: Fast Auto-Save */}
                 <button
                   onClick={() => handleQuickAutoSave(false)}
-                  className="p-4 rounded-xl bg-gradient-to-br from-amber-600/20 via-orange-600/20 to-purple-600/20 hover:from-amber-600/30 hover:via-orange-600/30 hover:to-purple-600/30 border border-amber-500/40 hover:border-amber-500/60 flex flex-col items-start text-left transition-all group shadow-md"
+                  className="p-4 rounded-xl bg-[#1d1b18] hover:bg-[#25221c] border border-amber-500/40 hover:border-amber-400 flex flex-col items-start text-left transition-all group shadow-sm cursor-pointer"
                 >
                   <div className="flex items-center justify-between w-full mb-2">
                     <span className="text-xs font-semibold text-white group-hover:text-amber-300 transition-colors flex items-center gap-1.5">
@@ -288,10 +288,10 @@ export default function NoteSynthesisModal({
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:translate-x-0.5 transition-all" />
                   </div>
-                  <p className="text-[11px] text-[#a1a1aa] leading-normal">
+                  <p className="text-xs text-[#a1a1aa] leading-normal">
                     One-click ultra-fast synthesis. Generates formal companion file directly into the vault and connects graph links.
                   </p>
-                  <span className="mt-3 text-[10px] font-mono text-emerald-400 font-medium">~1.2 seconds</span>
+                  <span className="mt-3 text-[11px] font-mono text-emerald-400 font-medium">~1.2 seconds</span>
                 </button>
               </div>
 
@@ -631,7 +631,7 @@ export default function NoteSynthesisModal({
             {status === 'review' && (
               <button
                 onClick={() => handleSaveSynthesis(false)}
-                className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:via-orange-500 hover:to-amber-600 text-white text-xs font-semibold shadow-md shadow-amber-950/40 border border-amber-400/30 transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                className="px-4 py-1.5 rounded-lg bg-[#d97706] hover:bg-[#b45309] text-white text-xs font-semibold shadow-sm border border-amber-400/40 transition-all flex items-center gap-1.5 cursor-pointer active:scale-[0.98]"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Approve & Save to Vault</span>
