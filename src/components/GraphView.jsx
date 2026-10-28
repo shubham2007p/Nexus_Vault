@@ -33,7 +33,7 @@ export default function GraphView({
   const containerRef = useRef();
   const drawnLabelBoxesRef = useRef([]);
   const nodePositionsRef = useRef(new Map());
-  const [dimensions, setDimensions] = useState({ width: 320, height: 140 });
+  const [dimensions, setDimensions] = useState({ width: 320, height: 252 });
   const [perspective, setPerspective] = useState('local'); // 'local' | 'global'
   const [hoveredNode, setHoveredNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,7 +61,7 @@ export default function GraphView({
       });
     } else if (containerRef.current) {
       const headerH = 36;
-      const totalH = isCollapsed ? 36 : 176;
+      const totalH = isCollapsed ? 36 : 288;
       setDimensions({
         width: containerRef.current.clientWidth || 320,
         height: Math.max(100, totalH - headerH),
@@ -274,7 +274,7 @@ export default function GraphView({
       className={
         isFullscreen
           ? 'fixed inset-0 z-50 bg-[#111113] flex flex-col w-screen h-screen select-none animate-in fade-in duration-150'
-          : `${isCollapsed ? 'h-9' : 'h-44'} bg-[#F7F7F4] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col relative select-none shrink-0 transition-all duration-150`
+          : `${isCollapsed ? 'h-9' : 'h-72'} bg-[#F7F7F4] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col relative select-none shrink-0 transition-all duration-150`
       }
     >
       {/* Header Toolbar */}
@@ -766,7 +766,7 @@ export default function GraphView({
   if (isFullscreen) {
     return (
       <>
-        <div className="h-44 bg-[#F0F1ED] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col items-center justify-center p-4 text-center select-none shrink-0">
+        <div className="h-72 bg-[#F0F1ED] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col items-center justify-center p-4 text-center select-none shrink-0">
           <Network className="w-6 h-6 text-[#287D54] dark:text-[#2EA468] mb-2 animate-pulse" />
           <span className="text-xs font-semibold text-[#242824] dark:text-[#F4F4F5]">Graph View Maximized</span>
           <span className="text-xs text-[#4A4F49] dark:text-[#A1A1AA] mt-0.5">Press Esc or click Minimize to exit full screen</span>

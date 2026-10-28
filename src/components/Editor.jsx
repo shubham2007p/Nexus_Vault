@@ -16,7 +16,9 @@ import {
   PanelLeft,
   PanelRight,
   Link2,
-  BookMarked
+  BookMarked,
+  Bot,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function Editor({
@@ -26,68 +28,121 @@ export default function Editor({
   isAIProcessing,
   onOpenFullGraph,
   onOpenSynthesis,
+  onOpenAIConfig,
+  aiConfig,
   onNavigateToFile,
   theme = 'light',
   isSidebarOpen,
   onToggleSidebar,
   isRightPanelOpen,
   onToggleRightPanel,
+  onReturnToLanding,
 }) {
   const editorContainerRef = useRef(null);
-  const editorViewRef = useRef(null);
+  const viewRef = useRef(null);
   const themeCompartment = useRef(new Compartment());
-  const [content, setContent] = useState('');
-  const [title, setTitle] = useState('');
-  const [saveState, setSaveState] = useState('saved');
-  const isInitialMount = useRef(true);
 
-  useEffect(() => {
-    if (file) {
-      setTitle(file.title || '');
-      setContent(file.content || '');
-      setSaveState('saved');
+  const [title, setTitle] = useState(file ? file.title : '');
+  const [content, setContent] = useState(file ? file.content : '');
+  const [saveState, setSaveState] = useState('saved'); // 'saved' | 'dirty' | 'saving'
+  const [wordCount, setWordCount] = useState(0);
+
+  const updateWordCount = (text) => {
+    if (!text || text.trim() === '') {
+      setWordCount(0);
+      return;
     }
-  }, [file?.id]);
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    setWordCount(words.length);
+  };
 
-  // CodeMirror Initialization
+  // Initialize CodeMirror instance when container & file are ready, or update doc on note switch
   useEffect(() => {
-    if (!editorContainerRef.current) return;
+    if (!editorContainerRef.current || !file) {
+      if (!file && viewRef.current) {
+        viewRef.current.destroy();
+        viewRef.current = null;
+      }
+      return;
+    }
 
-    const startState = EditorState.create({
-      doc: file?.content || '',
-      extensions: [
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        markdown(),
-        themeCompartment.current.of(theme === 'dark' ? oneDark : []),
-        linkHighlightPlugin,
-        EditorView.lineWrapping,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            const newDoc = update.state.doc.toString();
-            setContent(newDoc);
-            setSaveState('dirty');
-          }
-        }),
-      ],
-    });
+    if (!viewRef.current) {
+      // First mount with active file: create CodeMirror instance
+      const startState = EditorState.create({
+        doc: file.content || '',
+        extensions: [
+          history(),
+          keymap.of([...defaultKeymap, ...historyKeymap]),
+          markdown(),
+          themeCompartment.current.of(theme === 'dark' ? oneDark : []),
+          linkHighlightPlugin,
+          EditorView.lineWrapping,
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              const newText = update.state.doc.toString();
+              setContent(newText);
+              setSaveState('dirty');
+              updateWordCount(newText);
+            }
+          }),
+          EditorView.theme({
+            '&': {
+              height: '100%',
+              fontSize: '15px',
+              fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            },
+            '.cm-content': {
+              padding: '24px 32px 120px 32px',
+              maxWidth: '820px',
+              margin: '0 auto',
+              lineHeight: '1.75',
+            },
+            '.cm-scroller': {
+              overflow: 'auto',
+            },
+            '&.cm-focused': {
+              outline: 'none',
+            },
+          }),
+        ],
+      });
 
-    const view = new EditorView({
-      state: startState,
-      parent: editorContainerRef.current,
-    });
+      const view = new EditorView({
+        state: startState,
+        parent: editorContainerRef.current,
+      });
 
-    editorViewRef.current = view;
+      viewRef.current = view;
+    } else {
+      // View already exists: synchronize document if switching files or receiving external updates
+      const currentDoc = viewRef.current.state.doc.toString();
+      if (currentDoc !== file.content) {
+        viewRef.current.dispatch({
+          changes: { from: 0, to: currentDoc.length, insert: file.content || '' },
+        });
+      }
+    }
 
+    setTitle(file.title || '');
+    setContent(file.content || '');
+    setSaveState('saved');
+    updateWordCount(file.content || '');
+  }, [file?.id, file?.updated_at]);
+
+  // Clean up CodeMirror on unmount
+  useEffect(() => {
     return () => {
-      view.destroy();
+      if (viewRef.current) {
+        viewRef.current.destroy();
+        viewRef.current = null;
+      }
     };
-  }, [file?.id]);
+  }, []);
 
-  // Dynamically reconfigure CodeMirror theme when light/dark mode toggles
+  // Update theme dynamically
   useEffect(() => {
-    if (editorViewRef.current) {
-      editorViewRef.current.dispatch({
+    if (viewRef.current) {
+      viewRef.current.dispatch({
         effects: themeCompartment.current.reconfigure(theme === 'dark' ? oneDark : []),
       });
     }
@@ -95,67 +150,118 @@ export default function Editor({
 
   // Autosave Debounce (1000ms)
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
+    if (!file) return;
 
-    if (saveState === 'dirty' && file) {
-      const timer = setTimeout(async () => {
-        setSaveState('saving');
-        await onSave(file.id, { title, content });
-        setSaveState('saved');
-      }, 1000);
+    const timer = setTimeout(async () => {
+      if (saveState === 'dirty' && file) {
+        try {
+          setSaveState('saving');
+          await onSave(file.id, { title, content });
+          setSaveState('saved');
+        } catch (err) {
+          console.error('Autosave failed:', err);
+          setSaveState('dirty');
+        }
+      }
+    }, 1000);
 
-      return () => clearTimeout(timer);
-    }
+    return () => clearTimeout(timer);
   }, [content, title, saveState, file?.id]);
 
   const handleManualSave = async () => {
-    if (file) {
+    if (file && saveState === 'dirty') {
       setSaveState('saving');
       await onSave(file.id, { title, content });
       setSaveState('saved');
     }
   };
 
-  const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
-  const linkMatches = (content.match(/\[\[[^\[\]]+\]\]/g) || []).length;
-
-  const isFormalNote = file?.note_type === 'formal' || (file?.title && file.title.endsWith('(Formal)'));
-  const companion = file?.companionNote;
-
   if (!file) {
     return (
-      <div className="flex-1 bg-white dark:bg-[#15161A] flex flex-col items-center justify-center p-8 text-[#878C85] dark:text-[#71717A] select-none text-center transition-colors">
-        <div className="w-12 h-12 rounded-xl bg-[#F0F1ED] dark:bg-[#1C1D22] border border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-center mb-3">
-          <FileText className="w-6 h-6 text-[#878C85] dark:text-[#71717A]" />
+      <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#15161A] select-none">
+        {(!isSidebarOpen || onReturnToLanding) && (
+          <div className="h-12 border-b border-[#E3E5DF] dark:border-[#272A32] bg-[#F7F7F4] dark:bg-[#18191E] px-4 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              {onToggleSidebar && !isSidebarOpen && (
+                <button
+                  onClick={onToggleSidebar}
+                  className="p-1.5 rounded-md text-[#4A4F49] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] hover:bg-[#E8EAE4] dark:hover:bg-[#202227] transition-colors cursor-pointer shrink-0"
+                  title="Show Files Sidebar"
+                  aria-label="Show sidebar"
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </button>
+              )}
+              {onReturnToLanding && !isSidebarOpen && (
+                <button
+                  onClick={onReturnToLanding}
+                  className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E22] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#666B65] dark:text-[#A1A1AA] hover:text-[#287D54] dark:hover:text-emerald-400 border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors shrink-0 group"
+                  title="Return to Website Overview"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400 group-hover:-translate-x-0.5 transition-transform shrink-0" />
+                  <span>Website Overview</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[#878C85] dark:text-[#71717A]">
+          <div className="w-12 h-12 rounded-xl bg-[#F0F1ED] dark:bg-[#1E1F24] border border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-center mb-4 text-[#4A4F49] dark:text-[#A1A1AA]">
+            <FileText className="w-6 h-6 stroke-[1.5]" />
+          </div>
+          <h3 className="text-sm font-semibold text-[#242824] dark:text-[#D4D4D8] mb-1">
+            No Note Selected
+          </h3>
+          <p className="text-xs text-[#878C85] dark:text-[#71717A] max-w-xs leading-relaxed">
+            Select a note from the sidebar or click <kbd className="px-1.5 py-0.5 rounded bg-[#EAECE6] dark:bg-[#202227] border border-[#E3E5DF] dark:border-[#2E313B] font-mono text-[10px] text-[#4A4F49] dark:text-[#D4D4D8]">New</kbd> to begin.
+          </p>
         </div>
-        <p className="text-sm font-semibold text-[#242824] dark:text-[#F4F4F5]">No Note Selected</p>
-        <p className="text-xs text-[#666B65] dark:text-[#A1A1AA] mt-1 max-w-xs">
-          Select a note from the left sidebar, use Quick Switcher (⌘K), or create a new note.
-        </p>
       </div>
     );
   }
 
-  return (
-    <div className="flex-1 bg-white dark:bg-[#15161A] flex flex-col h-full overflow-hidden transition-colors">
-      {/* Semantic Screen Title */}
-      <h1 className="sr-only">{title ? `${title} — Nexus Vault` : 'Note Workspace — Nexus Vault'}</h1>
+  const isFormalNote = file.note_type === 'formal';
+  const companion = file.companionNote;
 
-      {/* Editor Header Toolbar */}
-      <div className="h-12 px-4 border-b border-[#E3E5DF] dark:border-[#272A32] bg-[#F7F7F4] dark:bg-[#17181C] flex items-center justify-between shrink-0 gap-3 transition-colors">
+  // Active AI Provider info
+  const activeProvider = aiConfig?.activeProvider || 'groq';
+  const providerNames = {
+    groq: 'Groq LPU',
+    anthropic: 'Claude',
+    openai: 'OpenAI (ChatGPT)',
+    gemini: 'Google Gemini',
+    openrouter: 'OpenRouter',
+    mistral: 'Mistral AI',
+    custom: 'Local / Custom',
+  };
+  const activeProviderLabel = providerNames[activeProvider] || activeProvider;
+  const hasActiveKey = Boolean(aiConfig?.keys?.[activeProvider] && aiConfig?.keys?.[activeProvider].trim() !== '');
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#15161A] overflow-hidden select-text">
+      {/* Top Action Bar */}
+      <div className="h-12 border-b border-[#E3E5DF] dark:border-[#272A32] bg-[#F7F7F4] dark:bg-[#18191E] px-4 flex items-center justify-between gap-3 shrink-0 select-none">
         {/* Left: Sidebar toggle, Note Title Input & Save Status */}
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="p-1.5 rounded-md text-[#666B65] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] hover:bg-[#E8EAE4] dark:hover:bg-[#202227] transition-colors cursor-pointer shrink-0"
-              title={isSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+              className="p-1.5 rounded-md text-[#4A4F49] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] hover:bg-[#E8EAE4] dark:hover:bg-[#202227] transition-colors cursor-pointer shrink-0"
+              title={isSidebarOpen ? 'Hide Files Sidebar' : 'Show Files Sidebar'}
               aria-label="Toggle sidebar"
             >
               <PanelLeft className="w-4 h-4" />
+            </button>
+          )}
+
+          {!isSidebarOpen && onReturnToLanding && (
+            <button
+              onClick={onReturnToLanding}
+              className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E22] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#666B65] dark:text-[#A1A1AA] hover:text-[#287D54] dark:hover:text-emerald-400 border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors shrink-0 group"
+              title="Return to Website Overview"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400 group-hover:-translate-x-0.5 transition-transform shrink-0" />
+              <span className="hidden sm:inline font-medium">Website Overview</span>
             </button>
           )}
 
@@ -166,7 +272,7 @@ export default function Editor({
               setTitle(e.target.value);
               setSaveState('dirty');
             }}
-            placeholder="Untitled Note"
+            placeholder="Untitled Note..."
             className="bg-transparent text-sm md:text-base font-semibold text-[#242824] dark:text-[#F4F4F5] focus:outline-none max-w-xs md:max-w-md truncate placeholder-[#878C85] dark:placeholder-[#71717A]"
           />
 
@@ -194,7 +300,7 @@ export default function Editor({
           </div>
         </div>
 
-        {/* Right: Restrained, Solid Action Controls */}
+        {/* Right: Action Controls */}
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Save Button */}
           <button
@@ -207,15 +313,28 @@ export default function Editor({
             <span className="hidden sm:inline">Save</span>
           </button>
 
-          {/* Groq Synthesis Action Button: Important secondary workflow, restrained amber */}
+          {/* AI / Robot Model & API Key Configuration Button (Right next to Save button) */}
+          <button
+            onClick={onOpenAIConfig}
+            className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E22] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#242824] dark:text-[#D4D4D8] border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors group relative"
+            title={`Configure AI Models & API Keys (Active: ${activeProviderLabel})`}
+          >
+            <Bot className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline font-medium">AI Model</span>
+            {hasActiveKey && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Active API key configured" />
+            )}
+          </button>
+
+          {/* Academic Synthesis Action Button */}
           {onOpenSynthesis && (
             <button
               onClick={() => onOpenSynthesis(file)}
               className="h-7 px-2.5 rounded-md bg-[#FEF7EC] dark:bg-[#2B2317] hover:bg-[#FDEED3] dark:hover:bg-[#382C1B] text-[#9A6214] dark:text-amber-300 border border-[#E7A23B]/40 dark:border-amber-500/35 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
               title={
                 isFormalNote
-                  ? 'Re-synthesize this formal companion note with Groq LPU'
-                  : 'Synthesize raw note into textbook-grade formal note with Groq LPU'
+                  ? `Re-synthesize this formal companion note with ${activeProviderLabel}`
+                  : `Synthesize raw note into textbook-grade formal note with ${activeProviderLabel}`
               }
             >
               <Sparkles className="w-3.5 h-3.5 text-[#E7A23B] dark:text-amber-400" />
@@ -228,7 +347,7 @@ export default function Editor({
             onClick={() => onProcessAI(file.id)}
             disabled={isAIProcessing}
             className="h-7 px-2.5 rounded-md bg-white dark:bg-[#1E1E24] hover:bg-[#F0F1ED] dark:hover:bg-[#27272E] text-[#242824] dark:text-[#E4E4E7] border border-[#E3E5DF] dark:border-[#272A32] text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-40"
-            title="Discover AI link recommendations for this note"
+            title={`Discover AI link recommendations with ${activeProviderLabel}`}
           >
             {isAIProcessing ? (
               <span className="w-3 h-3 border-2 border-[#287D54] border-t-transparent rounded-full animate-spin" />
@@ -264,7 +383,7 @@ export default function Editor({
         </div>
       </div>
 
-      {/* Subtle Companion Relationship Bar (Non-Intrusive, Quiet) */}
+      {/* Subtle Companion Relationship Bar */}
       {companion && onNavigateToFile && (
         <div className="h-7 px-4 bg-[#F7F7F4] dark:bg-[#17181C] border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between text-xs shrink-0 select-none">
           <div className="flex items-center gap-2 truncate">

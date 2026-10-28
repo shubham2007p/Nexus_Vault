@@ -160,9 +160,10 @@ graph TD
 
 | Layer | Technology | Description |
 |:---|:---|:---|
-| **Framework** | Express (Node.js) | REST API handling note CRUD, link parsing, and agent orchestration. |
-| **Database** | SQLite | Lightweight relational store for `files`, `links`, and `agent_runs`. |
-| **AI / LLM** | Anthropic Claude API | Tool-calling LLM (`propose_link`) analyzing notes and suggesting links. |
+| **Framework** | Express (Node.js) | REST API handling note CRUD, link parsing, disk sync, and agent orchestration. |
+| **Database** | SQLite (`vault.db`) | Relational store for `files`, `links`, `agent_runs`, `synthesis_versions`, and `app_settings`. |
+| **Disk Storage** | Physical `raw/` & `process/` | Automatic two-way file system mirroring for raw and synthesized notes. |
+| **Universal AI** | Groq, OpenAI, Anthropic, Gemini, OpenRouter, Mistral, Ollama | Multi-provider LLM dispatch engine with live latency testing and auto-key detection. |
 
 ### 4.3 Development & Tooling
 
@@ -216,9 +217,14 @@ Create `.env` in the root directory:
 
 ```env
 PORT=3001
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Configure any provider you wish (or set them directly in the UI via the Robot button):
+GROQ_API_KEY=gsk_your_groq_key_here
+OPENAI_API_KEY=sk-your_openai_key_here
+ANTHROPIC_API_KEY=sk-ant-your_anthropic_key_here
+GEMINI_API_KEY=AIzaSy_your_gemini_key_here
 ```
-*(If no API key is set, NexusVault defaults to its intelligent heuristic engine for link proposals).*
+*(If no API key is set, NexusVault defaults to its intelligent heuristic engine for link proposals. You can also configure and test keys on the fly using the in-app AI Model button next to Save).*
 
 ### 3. Run the Application
 

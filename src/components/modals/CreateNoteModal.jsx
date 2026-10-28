@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FilePlus, X } from 'lucide-react';
+import { FilePlus, X, Folder } from 'lucide-react';
 
-export default function CreateNoteModal({ isOpen, onClose, onCreate }) {
+export default function CreateNoteModal({ isOpen, onClose, onCreate, initialFolder = 'raw' }) {
   const [title, setTitle] = useState('');
+  const [folder, setFolder] = useState(initialFolder || 'raw');
   const [error, setError] = useState('');
   const inputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       setTitle('');
+      setFolder(initialFolder || 'raw');
       setError('');
       setTimeout(() => inputRef.current?.focus(), 50);
 
@@ -22,7 +24,7 @@ export default function CreateNoteModal({ isOpen, onClose, onCreate }) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, initialFolder, onClose]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -31,7 +33,7 @@ export default function CreateNoteModal({ isOpen, onClose, onCreate }) {
       setError('Please provide a note title');
       return;
     }
-    onCreate(cleanTitle);
+    onCreate(cleanTitle, folder);
     onClose();
   };
 
@@ -71,10 +73,44 @@ export default function CreateNoteModal({ isOpen, onClose, onCreate }) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Folder Selection */}
+          <div>
+            <label className="block text-xs font-medium text-[#242824] dark:text-[#d4d4d8] mb-1.5">
+              Destination Folder
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFolder('raw')}
+                className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                  folder === 'raw'
+                    ? 'bg-emerald-500/10 border-[#287D54] text-[#287D54] dark:text-emerald-400 dark:border-emerald-500 shadow-2xs'
+                    : 'bg-[#F7F7F4] dark:bg-[#151518] border-[#E3E5DF] dark:border-[#272A32] text-[#666B65] dark:text-[#8e8e98] hover:bg-white dark:hover:bg-[#1E1E22]'
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">raw/ (Raw Notes)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFolder('formal')}
+                className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                  folder === 'formal'
+                    ? 'bg-amber-500/10 border-amber-500 text-[#9A6214] dark:text-amber-300 shadow-2xs'
+                    : 'bg-[#F7F7F4] dark:bg-[#151518] border-[#E3E5DF] dark:border-[#272A32] text-[#666B65] dark:text-[#8e8e98] hover:bg-white dark:hover:bg-[#1E1E22]'
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">process/ (Formal)</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
             <label htmlFor="note-title-input" className="block text-xs font-medium text-[#242824] dark:text-[#d4d4d8]">
-              Title
+              Note Title
             </label>
             <input
               id="note-title-input"
@@ -93,7 +129,7 @@ export default function CreateNoteModal({ isOpen, onClose, onCreate }) {
             )}
           </div>
 
-          <div className="mt-6 flex items-center justify-end gap-2.5 pt-4 border-t border-[#E3E5DF] dark:border-[#27272a]">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E3E5DF] dark:border-[#27272a]">
             <button
               type="button"
               onClick={onClose}

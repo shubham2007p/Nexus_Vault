@@ -7,7 +7,8 @@ import CommandPalette from './components/CommandPalette';
 import LandingPage from './components/landing/LandingPage';
 import AIReviewModal from './components/modals/AIReviewModal';
 import NoteSynthesisModal from './components/modals/NoteSynthesisModal';
-import { Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
+import AIConfigModal from './components/modals/AIConfigModal';
+import { Sparkles, AlertCircle } from 'lucide-react';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -59,6 +60,20 @@ export default function App() {
   const [isAIReviewOpen, setIsAIReviewOpen] = useState(false);
   const [isSynthesisModalOpen, setIsSynthesisModalOpen] = useState(false);
   const [synthesisTargetFile, setSynthesisTargetFile] = useState(null);
+  const [isAIConfigOpen, setIsAIConfigOpen] = useState(false);
+  const [aiConfig, setAIConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus_ai_config');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      activeProvider: 'groq',
+      activeModel: 'openai/gpt-oss-120b',
+      keys: {},
+      models: {},
+      baseUrls: {},
+    };
+  });
   const [showAILinksOnGraph, setShowAILinksOnGraph] = useState(true);
   const [isFullscreenGraph, setIsFullscreenGraph] = useState(false);
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
@@ -111,6 +126,52 @@ export default function App() {
   const handleLaunchApp = () => {
     window.location.hash = '#/app';
     setRoute('app');
+  };
+
+  // Sync AI configuration from backend on mount
+  useEffect(() => {
+    fetch('/api/ai/config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.providers) {
+          setAIConfig((prev) => {
+            const keys = { ...prev.keys };
+            const models = { ...prev.models };
+            const baseUrls = { ...prev.baseUrls };
+            for (const [pId, pData] of Object.entries(data.providers)) {
+              if (!models[pId] && pData.activeModel) models[pId] = pData.activeModel;
+              if (!baseUrls[pId] && pData.baseUrl) baseUrls[pId] = pData.baseUrl;
+            }
+            return {
+              activeProvider: prev.activeProvider || data.activeProvider || 'groq',
+              activeModel: prev.activeModel || data.activeModel || 'openai/gpt-oss-120b',
+              keys,
+              models,
+              baseUrls,
+            };
+          });
+        }
+      })
+      .catch((err) => console.warn('Could not sync AI config from backend:', err));
+  }, []);
+
+  const getAIHeaders = () => {
+    const p = aiConfig?.activeProvider || 'groq';
+    return {
+      'Content-Type': 'application/json',
+      'x-ai-provider': p,
+      'x-ai-key': aiConfig?.keys?.[p] || '',
+      'x-ai-model': aiConfig?.models?.[p] || '',
+      'x-ai-base-url': aiConfig?.baseUrls?.[p] || '',
+    };
+  };
+
+  const handleSaveAIConfig = (newConfig) => {
+    setAIConfig(newConfig);
+    try {
+      localStorage.setItem('nexus_ai_config', JSON.stringify(newConfig));
+    } catch (e) {}
+    showToast(`Active AI Model: ${newConfig.activeProvider?.toUpperCase()} (${newConfig.activeModel || 'default'})`, 'success');
   };
 
   const handleReturnToLanding = () => {
@@ -209,19 +270,20 @@ export default function App() {
     setActiveFileId(id);
   };
 
-  const handleCreateFile = async (title) => {
+  const handleCreateFile = async (title, folder = 'raw') => {
     try {
+      const note_type = folder === 'formal' || folder === 'process' ? 'formal' : 'raw';
       const res = await fetch('/api/files', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({ title, note_type }),
       });
       if (res.ok) {
         const newFile = await res.json();
         await fetchFiles();
         await fetchGlobalGraph();
         setActiveFileId(newFile.id);
-        showToast(`Created note "${title}"`, 'success');
+        showToast(`Created note "${title}" in ${note_type === 'formal' ? 'process/' : 'raw/'}`, 'success');
       }
     } catch (err) {
       showToast('Failed to create note', 'error');
@@ -272,12 +334,16 @@ export default function App() {
       const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
       if (res.ok) {
         showToast('Note deleted', 'info');
-        const safeFilesList = Array.isArray(files) ? files : [];
-        const remaining = safeFilesList.filter((f) => f.id !== id);
-        setFiles(remaining);
+        // Refresh vault files to instantly update relations & clear golden dots
+        await fetchFiles();
         await fetchGlobalGraph();
         if (activeFileId === id) {
+          const safeFilesList = Array.isArray(files) ? files : [];
+          const remaining = safeFilesList.filter((f) => f.id !== id);
           setActiveFileId(remaining.length > 0 ? remaining[0].id : null);
+        } else if (activeFileId) {
+          // Re-fetch active note so companionNote state is cleared
+          await fetchActiveFileData(activeFileId);
         }
       }
     } catch (err) {
@@ -290,7 +356,10 @@ export default function App() {
     showToast('AI analyzing note connections...', 'info');
 
     try {
-      const res = await fetch(`/api/files/${id}/process`, { method: 'POST' });
+      const res = await fetch(`/api/files/${id}/process`, {
+        method: 'POST',
+        headers: getAIHeaders(),
+      });
       const data = await res.json();
 
       if (res.ok && data.success) {
@@ -407,16 +476,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#F7F7F4] dark:bg-[#111113] text-[#242824] dark:text-[#F4F4F5] relative">
-      {/* Return to Product Overview floating pill */}
-      <button
-        onClick={handleReturnToLanding}
-        className="fixed bottom-4 left-4 z-20 px-3 py-1.5 rounded-full bg-white/95 dark:bg-[#1c1c20]/95 hover:bg-[#F0F1ED] dark:hover:bg-[#27272e] border border-[#E3E5DF] dark:border-[#3b3b45] text-xs font-medium text-[#666B65] dark:text-stone-300 hover:text-[#242824] dark:hover:text-white shadow-md backdrop-blur-sm flex items-center gap-1.5 transition-all cursor-pointer group"
-        title="Return to Nexus Vault Website"
-      >
-        <ArrowLeft className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400 group-hover:-translate-x-0.5 transition-transform" />
-        <span>Website Overview</span>
-      </button>
-
       {/* Toast Notification Banner (Restrained, accessible contrast) */}
       {toast && (
         <div
@@ -469,6 +528,7 @@ export default function App() {
             theme={theme}
             onToggleTheme={toggleTheme}
             onCloseSidebar={() => setIsSidebarOpen(false)}
+            onReturnToLanding={handleReturnToLanding}
           />
         </ErrorBoundary>
       </div>
@@ -482,6 +542,8 @@ export default function App() {
           isAIProcessing={isAIProcessing}
           onOpenFullGraph={() => setIsFullscreenGraph(true)}
           onOpenSynthesis={handleOpenSynthesis}
+          onOpenAIConfig={() => setIsAIConfigOpen(true)}
+          aiConfig={aiConfig}
           onNavigateToFile={handleSelectFile}
           theme={theme}
           onToggleTheme={toggleTheme}
@@ -489,6 +551,7 @@ export default function App() {
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           isRightPanelOpen={isRightPanelOpen}
           onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+          onReturnToLanding={handleReturnToLanding}
         />
       </ErrorBoundary>
 
@@ -574,13 +637,23 @@ export default function App() {
         theme={theme}
       />
 
-      {/* Groq Academic Note Synthesis Modal */}
+      {/* Academic Note Synthesis Modal */}
       <NoteSynthesisModal
         isOpen={isSynthesisModalOpen}
         onClose={() => setIsSynthesisModalOpen(false)}
         file={synthesisTargetFile || activeFile}
         onSynthesisSuccess={handleSynthesisSuccess}
         onNavigateToFile={handleSelectFile}
+        theme={theme}
+        aiConfig={aiConfig}
+      />
+
+      {/* Universal AI Provider & API Key Modal */}
+      <AIConfigModal
+        isOpen={isAIConfigOpen}
+        onClose={() => setIsAIConfigOpen(false)}
+        aiConfig={aiConfig}
+        onSaveConfig={handleSaveAIConfig}
         theme={theme}
       />
     </div>

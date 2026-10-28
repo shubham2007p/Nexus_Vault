@@ -101,5 +101,14 @@ export async function initDb() {
     );
   `);
 
+  // Table to store persistent application settings (AI provider, keys, models)
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
   console.log('Database initialized successfully at:', dbPath);
 }

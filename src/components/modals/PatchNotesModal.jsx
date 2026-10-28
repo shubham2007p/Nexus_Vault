@@ -9,7 +9,12 @@ import {
   Bot,
   Keyboard,
   CheckCircle2,
-  ExternalLink
+  FolderTree,
+  Zap,
+  BookOpen,
+  Sun,
+  ShieldCheck,
+  FileCode,
 } from 'lucide-react';
 
 export default function PatchNotesModal({ isOpen, onClose }) {
@@ -38,33 +43,33 @@ export default function PatchNotesModal({ isOpen, onClose }) {
       aria-labelledby="patch-notes-title"
     >
       <div
-        className="relative w-full max-w-2xl bg-[#17171a] border border-[#2e2e36] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-150"
+        className="relative w-full max-w-2xl bg-[#17171a] border border-[#2e2e36] rounded-2xl shadow-2xl flex flex-col max-h-[88vh] overflow-hidden animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bar */}
         <div className="px-6 py-4 border-b border-[#26262c] flex items-center justify-between bg-[#131316] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-purple-400">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <BookOpen className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 id="patch-notes-title" className="text-sm font-semibold text-[#f4f4f5]">
                   NexusVault Patch Notes & Power Guide
                 </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/25 font-semibold">
-                  v1.2.0
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">
+                  v2.1.0 Universal
                 </span>
               </div>
               <p className="text-xs text-[#8e8e98] mt-0.5">
-                Pro tips and hidden workflow techniques to navigate the application flawlessly
+                Complete guide to raw vs process folders, Universal AI models, semantic graphs, and workflows
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#71717a] hover:text-[#f4f4f5] hover:bg-[#222227] transition-colors"
+            className="p-1.5 rounded-lg text-[#71717a] hover:text-[#f4f4f5] hover:bg-[#222227] transition-colors cursor-pointer"
             aria-label="Close patch notes"
           >
             <X className="w-4 h-4" />
@@ -73,73 +78,101 @@ export default function PatchNotesModal({ isOpen, onClose }) {
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-[#d4d4d8]">
-          {/* Quick Switcher Highlight */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/30 to-[#1e1c24] border border-purple-500/30 space-y-2">
+          {/* Universal AI Hub Feature Callout */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-[#181a20] to-[#17171a] border border-emerald-500/30 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-purple-300 font-semibold text-xs">
-                <Command className="w-4 h-4 text-purple-400" />
-                <span>The Invisible Power Tool: Quick Switcher</span>
+              <div className="flex items-center gap-2 text-emerald-300 font-semibold text-xs">
+                <Bot className="w-4 h-4 text-emerald-400" />
+                <span>New: Universal AI Hub & Robot Model Selector</span>
               </div>
-              <div className="flex items-center gap-1 font-mono text-[10px] bg-[#111113] px-2 py-0.5 rounded border border-[#2e2e36] text-[#a1a1aa]">
-                <kbd className="text-[#f4f4f5] font-semibold">⌘K</kbd> / <kbd className="text-[#f4f4f5] font-semibold">Ctrl+K</kbd>
-              </div>
+              <span className="text-[10px] font-mono bg-[#111113] px-2 py-0.5 rounded border border-[#2e2e36] text-emerald-400">
+                Top Bar Next to Save
+              </span>
             </div>
             <p className="text-[#a1a1aa] leading-relaxed">
-              The Quick Switcher is embedded directly into the workspace. Press <strong className="text-[#f4f4f5]">Ctrl+K</strong> or <strong className="text-[#f4f4f5]">⌘K</strong> from anywhere in the application to summon the modal, filter across all vault files instantly, navigate using <kbd className="px-1 py-0.2 bg-[#222227] rounded text-[#d4d4d8]">↑</kbd> <kbd className="px-1 py-0.2 bg-[#222227] rounded text-[#d4d4d8]">↓</kbd>, and press <kbd className="px-1 py-0.2 bg-[#222227] rounded text-[#d4d4d8]">Enter</kbd> to jump straight into any note without touching your mouse.
+              Click the <strong className="text-[#f4f4f5]">AI / Robot button</strong> right next to the Save button in the editor to configure and switch AI models on the fly. Nexus Vault now supports <strong className="text-emerald-300">Groq Cloud (LPU)</strong>, <strong className="text-amber-300">Anthropic Claude</strong>, <strong className="text-emerald-400">OpenAI (ChatGPT)</strong>, <strong className="text-blue-400">Google Gemini</strong>, <strong className="text-purple-400">OpenRouter</strong>, <strong className="text-orange-400">Mistral AI</strong>, and <strong className="text-zinc-400">Local Ollama / LM Studio</strong>. Features real-time API key auto-detection and a live <em>Test Key & Model</em> latency benchmark.
             </p>
           </div>
 
-          {/* Section: Collapsible Search Icon */}
+          {/* Section: Raw vs. Process Dual Folder Architecture */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
-              <Search className="w-4 h-4 text-purple-400" />
-              <span>Collapsible On-Demand Search</span>
+              <FolderTree className="w-4 h-4 text-emerald-400" />
+              <span>Dual Folder Architecture: raw/ and process/</span>
+            </div>
+            <div className="pl-6 space-y-2 text-[#a1a1aa] leading-relaxed">
+              <p>
+                The vault is strictly bifurcated into two dedicated folders, both in the UI sidebar and physically on disk:
+              </p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong className="text-[#f4f4f5]">📁 raw/ (Raw Notes):</strong> Your informal scratchpad for quick, unstructured lecture scribbles, personal mental models, and unedited thoughts.
+                </li>
+                <li>
+                  <strong className="text-[#f4f4f5]">📁 process/ (Processed Notes):</strong> AI-synthesized, textbook-grade companion notes with rigorous LaTeX formulas, mathematical derivations, theorems, and core definitions.
+                </li>
+                <li>
+                  <strong className="text-[#f4f4f5]">Two-Way Disk Sync:</strong> All notes are automatically mirrored into the physical <code className="text-zinc-300 bg-[#222227] px-1 py-0.5 rounded">raw/</code> and <code className="text-zinc-300 bg-[#222227] px-1 py-0.5 rounded">process/</code> folders on your drive.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Section: Academic Note Synthesis Engine */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span>Academic Note Synthesizer (Raw → Formal Companion)</span>
+            </div>
+            <div className="pl-6 space-y-1.5 text-[#a1a1aa] leading-relaxed">
+              <p>
+                Click <strong className="text-amber-300">Synthesize Note</strong> on any raw note. The AI agent:
+              </p>
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>Preserves your raw intuition, metaphors, and intuitive bridges.</li>
+                <li>Derives rigorous mathematical formulas and proofs formatted in clean LaTeX ($...$ and $$...$$).</li>
+                <li>Extracts core definitions, theorems, and practical computational caveats.</li>
+                <li>Generates a companion formal note in <code className="text-amber-300 bg-[#222227] px-1 py-0.5 rounded">process/</code> linked directly to the original raw note without modifying the raw note content.</li>
+                <li>Archives previous versions in a synthesis history table with full conflict safeguards.</li>
+              </ol>
+            </div>
+          </div>
+
+          {/* Section: AI Semantic Link Discovery */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span>AI Semantic Link Agent & Human-in-the-Loop Review</span>
             </div>
             <p className="text-[#a1a1aa] leading-relaxed pl-6">
-              Instead of occupying fixed vertical space, the sidebar search is now an on-demand icon. Click the search emblem right where it is to open the search bar with instant focus. Type to filter your notes in real-time, and click the close icon or hit <kbd className="px-1 bg-[#222227] rounded">Esc</kbd> to collapse it back.
+              Click <strong className="text-[#f4f4f5]">Discover Links</strong> in the editor toolbar or <strong className="text-[#f4f4f5]">Discover AI Links</strong> in the right inspector. The agent scans your note alongside all available vault titles to propose typed contextual links (e.g. <code className="text-emerald-300 bg-[#222227] px-1 py-0.5 rounded">[[Target | relies_on | Context]]</code>). Review suggestions in the interactive review modal to accept or discard each link with one click.
             </p>
           </div>
 
-          {/* Section: Connected Knowledge Graph */}
+          {/* Section: Knowledge Graph Viewers */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
               <Network className="w-4 h-4 text-purple-400" />
-              <span>Full-Screen & Corner Knowledge Graph Viewers</span>
+              <span>Interactive Knowledge Graph (Global & Local Views)</span>
             </div>
             <div className="pl-6 space-y-1.5 text-[#a1a1aa] leading-relaxed">
               <p>
-                <strong className="text-[#f4f4f5]">Full-Screen Mode:</strong> Click the maximize button in the graph header to expand the graph over your entire screen. View only your interconnected ideas with expanded zoom and pan, search queries, and click any node to immediately navigate or open it in the editor. Press <kbd className="px-1 bg-[#222227] rounded text-[#d4d4d8]">Esc</kbd> or click <em>Minimize</em> to return to the corner panel.
+                <strong className="text-[#f4f4f5]">Global vs Local Neighborhood:</strong> Switch seamlessly between the entire vault cluster map (degree-weighted node sizes) and the focused 1-hop / 2-hop local neighborhood of your active note.
               </p>
               <p>
-                <strong className="text-[#f4f4f5]">Global vs Local Perspectives:</strong> Switch between the full vault cluster map (degree-weighted node sizes) and the focused radial local neighborhood (1-hop vs 2-hop depth toggle with zero label collisions).
+                <strong className="text-[#f4f4f5]">Fullscreen Expansion:</strong> Click the expand button or press <kbd className="px-1.5 py-0.5 bg-[#222227] rounded text-[#d4d4d8] font-mono">G</kbd> to enter full-screen graph visualization with zoom, pan, and real-time node navigation.
               </p>
             </div>
           </div>
 
-          {/* Section: Editorial Markdown Writing */}
+          {/* Section: Real-Time Sidebar Search */}
           <div className="space-y-2">
             <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
-              <Edit3 className="w-4 h-4 text-purple-400" />
-              <span>Editorial Writing & Wikilinks</span>
-            </div>
-            <div className="pl-6 space-y-1.5 text-[#a1a1aa] leading-relaxed">
-              <p>
-                Writing area is centered to a comfortable 740px reading width with proportional typography, high-contrast headings, and live word/link counts.
-              </p>
-              <p>
-                Use standard internal wikilinks like <code className="text-purple-300 bg-[#222227] px-1.5 py-0.5 rounded text-[11px]">[[Note Title]]</code> or contextual relationships like <code className="text-purple-300 bg-[#222227] px-1.5 py-0.5 rounded text-[11px]">[[Target Note|implements|context]]</code>.
-              </p>
-            </div>
-          </div>
-
-          {/* Section: AI Link Discovery */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
-              <Bot className="w-4 h-4 text-amber-400" />
-              <span>AI Semantic Link Agent</span>
+              <Search className="w-4 h-4 text-purple-400" />
+              <span>Real-Time Folder Search</span>
             </div>
             <p className="text-[#a1a1aa] leading-relaxed pl-6">
-              Click <strong className="text-[#f4f4f5]">Process Note</strong> in the editor or <strong className="text-[#f4f4f5]">Discover AI Links</strong> in the inspector. The agent scans your note and proposes semantic links with relationship tags. Review proposals and approve them with one click to auto-append to your note.
+              The sidebar search bar is always visible at the top of the file tree. It filters notes across both <code className="text-zinc-300 bg-[#222227] px-1 py-0.5 rounded">raw/</code> and <code className="text-zinc-300 bg-[#222227] px-1 py-0.5 rounded">process/</code> folders simultaneously, showing matching counts for each folder in real time.
             </p>
           </div>
 
@@ -159,12 +192,12 @@ export default function PatchNotesModal({ isOpen, onClose }) {
                 <kbd className="px-1.5 py-0.5 bg-[#222227] border border-[#2e2e36] text-[#f4f4f5] rounded font-mono">Ctrl+S / ⌘S</kbd>
               </div>
               <div className="p-2.5 rounded-lg bg-[#1a1a1e] border border-[#26262c] flex items-center justify-between">
-                <span className="text-[#a1a1aa]">Dismiss / Close Dialog</span>
-                <kbd className="px-1.5 py-0.5 bg-[#222227] border border-[#2e2e36] text-[#f4f4f5] rounded font-mono">Escape</kbd>
+                <span className="text-[#a1a1aa]">Fullscreen Graph</span>
+                <kbd className="px-1.5 py-0.5 bg-[#222227] border border-[#2e2e36] text-[#f4f4f5] rounded font-mono">G / Expand</kbd>
               </div>
               <div className="p-2.5 rounded-lg bg-[#1a1a1e] border border-[#26262c] flex items-center justify-between">
-                <span className="text-[#a1a1aa]">Confirm / Jump to Note</span>
-                <kbd className="px-1.5 py-0.5 bg-[#222227] border border-[#2e2e36] text-[#f4f4f5] rounded font-mono">Enter ↵</kbd>
+                <span className="text-[#a1a1aa]">Dismiss Dialog / Exit Fullscreen</span>
+                <kbd className="px-1.5 py-0.5 bg-[#222227] border border-[#2e2e36] text-[#f4f4f5] rounded font-mono">Escape</kbd>
               </div>
             </div>
           </div>
@@ -174,13 +207,13 @@ export default function PatchNotesModal({ isOpen, onClose }) {
         <div className="px-6 py-3 border-t border-[#26262c] flex items-center justify-between bg-[#131316] shrink-0 text-xs text-[#71717a]">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            Workspace updated and running smoothly
+            Nexus Vault v2.1.0 • Universal AI Engine Active
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-[#222228] hover:bg-purple-600/30 text-[#f4f4f5] hover:text-purple-200 border border-[#2e2e36] hover:border-purple-500/40 rounded-lg font-medium transition-all shadow-sm"
+            className="px-4 py-1.5 bg-[#287D54] hover:bg-[#206644] text-white rounded-lg font-medium transition-all shadow-sm cursor-pointer"
           >
-            Got it, let's work
+            Close Guide
           </button>
         </div>
       </div>

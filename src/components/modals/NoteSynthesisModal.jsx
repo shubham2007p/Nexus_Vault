@@ -24,6 +24,7 @@ export default function NoteSynthesisModal({
   file,
   onSynthesisSuccess,
   onNavigateToFile,
+  aiConfig,
 }) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'structured' | 'history'
   const [status, setStatus] = useState('idle'); // 'idle' | 'generating' | 'review' | 'saving' | 'conflict' | 'error'
@@ -38,12 +39,26 @@ export default function NoteSynthesisModal({
   const [historyList, setHistoryList] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
+  const activeProvider = aiConfig?.activeProvider || 'groq';
+  const activeModel = aiConfig?.models?.[activeProvider] || 'default model';
+
   const steps = [
     'Preserving personal intuition and mental models...',
-    'Querying Groq LPU (Llama 3.3 70B Versatile)...',
+    `Querying ${activeProvider.toUpperCase()} (${activeModel})...`,
     'Deriving mathematical theorems & LaTeX expressions...',
     'Resolving cross-concept Vault wikilinks...',
   ];
+
+  const getAIHeaders = () => {
+    const p = aiConfig?.activeProvider || 'groq';
+    return {
+      'Content-Type': 'application/json',
+      'x-ai-provider': p,
+      'x-ai-key': aiConfig?.keys?.[p] || '',
+      'x-ai-model': aiConfig?.models?.[p] || '',
+      'x-ai-base-url': aiConfig?.baseUrls?.[p] || '',
+    };
+  };
 
   useEffect(() => {
     if (isOpen && file) {
@@ -85,6 +100,7 @@ export default function NoteSynthesisModal({
     try {
       const res = await fetch(`/api/files/${file.id}/synthesize/preview`, {
         method: 'POST',
+        headers: getAIHeaders(),
       });
       clearInterval(stepInterval);
       const data = await res.json();
@@ -163,7 +179,7 @@ export default function NoteSynthesisModal({
     try {
       const res = await fetch(`/api/files/${file.id}/synthesize/auto`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAIHeaders(),
         body: JSON.stringify({ overwriteConfirmed }),
       });
       clearInterval(stepInterval);
@@ -205,10 +221,10 @@ export default function NoteSynthesisModal({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-semibold text-[#242824] dark:text-[#f4f4f5] tracking-tight">
-                  Groq Academic Note Synthesizer
+                  Academic Note Synthesizer
                 </h2>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#E7A23B]/15 text-[#B47818] dark:text-amber-300 border border-[#E7A23B]/30 font-medium">
-                  LPU Llama 3.3 70B
+                  {activeProvider.toUpperCase()} • {activeModel}
                 </span>
               </div>
               <p className="text-xs text-[#666B65] dark:text-[#a1a1aa] mt-0.5">
