@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Code, HelpCircle, Check, Info, Sparkles } from 'lucide-react';
+import { Check, Info } from 'lucide-react';
 
 export default function ContextualLinksSection() {
   const [selectedExample, setSelectedExample] = useState(0);
@@ -11,15 +11,15 @@ export default function ContextualLinksSection() {
       target: 'Gradient Descent',
       relationship: 'optimizes',
       context: 'Minimizes empirical risk loss function across high-dimensional parameter surfaces',
-      noteSnippet: 'In neural network training, we calculate loss derivatives with respect to weights, which '
+      noteSnippet: 'Once layer gradients are computed via backpropagation, we apply ',
     },
     {
       domain: 'Software Architecture',
       standard: '[[Redis Cache]]',
       target: 'Redis Cache',
       relationship: 'mitigates_bottleneck',
-      context: 'Absorbs read spike bursts to prevent relational Postgres pool exhaustion',
-      noteSnippet: 'To scale our user feed without exceeding p99 database latency budgets, our service '
+      context: 'Absorbs read spike bursts to prevent relational Postgres connection pool exhaustion',
+      noteSnippet: 'To scale our timeline service within p99 latency budgets, the API gateway relies on ',
     },
     {
       domain: 'Systems Biology',
@@ -27,8 +27,8 @@ export default function ContextualLinksSection() {
       target: 'ATP Synthase',
       relationship: 'harnesses_energy_from',
       context: 'Proton electrochemical gradient across the inner mitochondrial membrane drives rotary catalysis',
-      noteSnippet: 'During oxidative phosphorylation, the electron transport chain establishes a proton motive force that '
-    }
+      noteSnippet: 'During oxidative phosphorylation, the electron transport chain builds a proton force that ',
+    },
   ];
 
   const current = examples[selectedExample];
@@ -39,20 +39,19 @@ export default function ContextualLinksSection() {
         {/* Section Header */}
         <div className="max-w-2xl mx-auto text-center mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#D6D0C5] bg-[#F4EFEA] text-[#2D5A43] text-xs font-mono uppercase tracking-wider mb-4">
-            <span>The 3-Tuple Semantic Link</span>
+            <span>Meaningful Connections (Target + Relationship + Why)</span>
           </div>
           <h2 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-[#1C1917] leading-[1.15] mb-5">
-            A connection is more useful <br className="hidden sm:inline" />
-            <span className="italic font-normal text-[#2D5A43]">when you know why it exists.</span>
+            A link is far more useful <br className="hidden sm:inline" />
+            <span className="italic font-normal text-[#2D5A43]">when you remember why you made it.</span>
           </h2>
           <p className="text-[#66605A] text-base sm:text-lg leading-relaxed">
-            Standard wikilinks record that two notes touch, but tell you nothing about the connection. 
-            Nexusvault upgrades ordinary links into 3-tuple relationships that preserve the reason for the link.
+            Standard wikilinks only record that two notes touch—forcing you to re-read both files months later to remember how they relate. Nexus Vault upgrades links into self-documenting relationships right inside plain Markdown.
           </p>
         </div>
 
         {/* Domain Switcher */}
-        <div className="flex justify-center gap-2 mb-10 overflow-x-auto pb-2">
+        <div className="flex flex-wrap justify-center gap-2 mb-10">
           {examples.map((ex, idx) => (
             <button
               key={ex.domain}
@@ -63,22 +62,22 @@ export default function ContextualLinksSection() {
                   : 'bg-white text-[#66605A] border border-[#E7E2DA] hover:bg-[#F4EFEA]'
               }`}
             >
-              {ex.domain}
+              {ex.domain} Example
             </button>
           ))}
         </div>
 
-        {/* Side-by-Side Comparison: 1-Tuple vs 3-Tuple */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+        {/* Side-by-Side Comparison: Bare Wikilink vs Nexus Vault Contextual Link */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-14">
           {/* Left: Standard Wikilink */}
           <div className="rounded-xl border border-[#E7E2DA] bg-white p-7 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-mono uppercase tracking-wider text-[#8C827A]">
-                  Traditional 1-Tuple Link
+                <span className="text-xs font-mono uppercase tracking-wider text-[#8C827A] font-semibold">
+                  Standard Wikilink
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#FAF8F5] border border-[#E7E2DA] text-[10px] text-[#78716C] font-mono">
-                  Untyped Binary Edge
+                  Destination Only
                 </span>
               </div>
 
@@ -87,34 +86,34 @@ export default function ContextualLinksSection() {
               </div>
 
               <h4 className="font-serif font-bold text-lg text-[#1C1917] mb-2">
-                What it conveys:
+                What happens 6 months later:
               </h4>
               <p className="text-sm text-[#66605A] leading-relaxed mb-4">
-                An edge connects these two notes. When you review your vault 6 months later, you must re-read both entire documents to reconstruct why you linked them.
+                You see a line between two notes on your graph, but have no clue whether Note A depends on Note B, contradicts it, or implements it without opening and re-reading both files.
               </p>
 
               <div className="space-y-2 text-xs text-[#8C827A] pt-4 border-t border-[#E7E2DA]">
                 <div className="flex items-center gap-2 text-rose-700/80">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  <span>No relationship type recorded</span>
+                  <span>No relationship action recorded</span>
                 </div>
                 <div className="flex items-center gap-2 text-rose-700/80">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  <span>No context or reason preserved</span>
+                  <span>No explanation of why the notes connect</span>
                 </div>
                 <div className="flex items-center gap-2 text-rose-700/80">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                  <span>Graph renders as an unweighted line</span>
+                  <span>Backlinks panel shows zero context</span>
                 </div>
               </div>
             </div>
 
             <div className="mt-8 text-xs font-mono text-[#8C827A] p-2.5 rounded bg-[#FAF8F5] border border-[#E7E2DA]">
-              Obsidian / Roam default syntax
+              Supported in Nexus Vault for quick links: <code className="text-[#1C1917]">[[Target Note]]</code>
             </div>
           </div>
 
-          {/* Right: Nexusvault Contextual Link */}
+          {/* Right: Nexus Vault Contextual Link */}
           <div className="rounded-xl border-2 border-[#2D5A43] bg-white p-7 shadow-md flex flex-col justify-between relative overflow-hidden">
             {/* Top Accent Strip */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-[#2D5A43]" />
@@ -122,10 +121,10 @@ export default function ContextualLinksSection() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-mono uppercase tracking-wider text-[#2D5A43] font-bold">
-                  Nexusvault 3-Tuple Link
+                  Nexus Vault Contextual Link
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#EBF2EE] border border-[#B7D0C2] text-[10px] text-[#1C3A2B] font-mono font-semibold">
-                  Semantic Typed Edge
+                  Target + Relationship + Why
                 </span>
               </div>
 
@@ -140,30 +139,30 @@ export default function ContextualLinksSection() {
               </div>
 
               <h4 className="font-serif font-bold text-lg text-[#1C1917] mb-2">
-                What it conveys:
+                What happens 6 months later:
               </h4>
               <p className="text-sm text-[#66605A] leading-relaxed mb-4">
-                The connection explicitly communicates the target note, the precise ontological dependency, and the qualifying rationale directly inside your prose.
+                At a glance—inside your note, in the Backlinks panel, and on the Graph—you immediately see <strong>which note</strong> is linked, <strong>how it relates</strong>, and <strong>the exact reason</strong>.
               </p>
 
               <div className="space-y-2 text-xs text-[#1C3A2B] pt-4 border-t border-[#E7E2DA]">
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-[#2D5A43] shrink-0" />
-                  <span>Target Note resolves to destination file</span>
+                  <span>Can be proposed automatically by AI or typed by hand</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-[#2D5A43] shrink-0" />
-                  <span>Relationship label rendered in Graph and Backlinks</span>
+                  <span>Relationship verb labels every edge on your Knowledge Graph</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-[#2D5A43] shrink-0" />
-                  <span>Context explanation surfaces immediately without opening target note</span>
+                  <span>Context sentence appears in the target note's Backlinks inspector</span>
                 </div>
               </div>
             </div>
 
             <div className="mt-8 text-xs font-mono text-[#2D5A43] p-2.5 rounded bg-[#EBF2EE] border border-[#B7D0C2] flex items-center justify-between">
-              <span>Standard Markdown compatible</span>
+              <span>Portable 3-Tuple Markdown Syntax</span>
               <span className="font-sans font-bold">100% Plain Text</span>
             </div>
           </div>
@@ -173,31 +172,31 @@ export default function ContextualLinksSection() {
         <div className="rounded-xl border border-[#E7E2DA] bg-[#F4EFEA] p-6 sm:p-8">
           <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-[#66605A] mb-4">
             <Info className="w-4 h-4 text-[#2D5A43]" />
-            <span>Grammar & Parsing Breakdown</span>
+            <span>How a 3-Part Contextual Link Works</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg bg-white border border-[#E7E2DA]">
-              <div className="text-[10px] font-mono uppercase text-[#8C827A] mb-1">Segment 1</div>
-              <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Target Note Title</div>
+              <div className="text-[10px] font-mono uppercase text-[#8C827A] mb-1">Part 1 · Where</div>
+              <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Destination Note</div>
               <p className="text-xs text-[#66605A] leading-relaxed">
-                The exact name of the destination note. If the file doesn't exist yet, Nexusvault creates a phantom node that resolves automatically once created.
+                The title of the connected note (e.g., <code className="font-mono text-[#1C1917] bg-[#FAF8F5] px-1 rounded">{current.target}</code>). If that note hasn't been written yet, Nexus Vault displays a phantom node on the graph until you create it.
               </p>
             </div>
 
             <div className="p-4 rounded-lg bg-white border border-[#E7E2DA]">
-              <div className="text-[10px] font-mono uppercase text-[#2D5A43] mb-1">Segment 2</div>
-              <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Relationship Type</div>
+              <div className="text-[10px] font-mono uppercase text-[#2D5A43] mb-1">Part 2 · How</div>
+              <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Relationship Action</div>
               <p className="text-xs text-[#66605A] leading-relaxed">
-                Short ontological action: <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">prerequisite_for</code>, <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">relies_on</code>, <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">optimizes</code>, <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">implements</code>.
+                A concise action verb describing the link: <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">prerequisite_for</code>, <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">relies_on</code>, <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">optimizes</code>, <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">implements</code>, or <code className="font-mono text-emerald-800 bg-[#EBF2EE] px-1 rounded">complements</code>.
               </p>
             </div>
 
             <div className="p-4 rounded-lg bg-white border border-[#E7E2DA]">
-              <div className="text-[10px] font-mono uppercase text-amber-700 mb-1">Segment 3</div>
-              <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Context Rationale</div>
+              <div className="text-[10px] font-mono uppercase text-amber-700 mb-1">Part 3 · Why</div>
+              <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Context Explanation</div>
               <p className="text-xs text-[#66605A] leading-relaxed">
-                A concise qualitative sentence explaining why the two thoughts intersect. Prevents cognitive drift when revisiting your vault months later.
+                A short one-line note to your future self explaining <em>why</em> these two concepts intersect—eliminating guesswork when reviewing for exams or design reviews.
               </p>
             </div>
           </div>

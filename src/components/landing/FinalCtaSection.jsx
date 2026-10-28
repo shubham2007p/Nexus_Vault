@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Github, Sparkles, Terminal, FileText, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Github, Sparkles } from 'lucide-react';
 
 export default function FinalCtaSection({ onLaunchApp }) {
   return (
@@ -10,20 +10,20 @@ export default function FinalCtaSection({ onLaunchApp }) {
         </div>
 
         <h2 className="font-serif text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-[#1C1917] leading-[1.1] mb-6">
-          Start with one note. <br />
-          <span className="italic font-normal text-[#2D5A43]">Find the connections.</span>
+          Start with one raw note. <br />
+          <span className="italic font-normal text-[#2D5A43]">Synthesize and connect the rest.</span>
         </h2>
 
-        <p className="text-[#66605A] text-base sm:text-lg max-w-xl mx-auto leading-relaxed mb-10">
-          Capture your notes in plain Markdown. When you are ready, let Nexusvault reveal how your ideas connect—under your complete control.
+        <p className="text-[#66605A] text-base sm:text-lg max-w-xl mx-auto leading-relaxed mb-9">
+          Write freely in plain Markdown. When you are ready, synthesize formal textbook companions and uncover how your ideas connect—under your complete control.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
           <button
             onClick={onLaunchApp}
             className="w-full sm:w-auto px-8 py-4 text-sm font-semibold text-white bg-[#2D5A43] hover:bg-[#1C3A2B] rounded-lg transition-all shadow-md shadow-[#2D5A43]/20 hover:shadow-lg flex items-center justify-center gap-2 group cursor-pointer"
           >
-            <span>Try Nexusvault free</span>
+            <span>Launch Live Workspace</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </button>
 
@@ -38,10 +38,14 @@ export default function FinalCtaSection({ onLaunchApp }) {
           </a>
         </div>
 
+        <p className="text-xs font-mono text-[#66605A] mb-10">
+          Instant browser access · Pre-loaded starter vault · No signup required
+        </p>
+
         <div className="inline-flex flex-wrap items-center justify-center gap-6 text-xs text-[#8C827A] font-mono border-t border-[#E7E2DA] pt-8">
-          <span>• 100% Local SQLite + Markdown</span>
-          <span>• Zero Vendor Lock-in</span>
-          <span>• Source Available License</span>
+          <span>• 100% Local SQLite + Physical .md Sync</span>
+          <span>• 7 AI Providers + Local Ollama</span>
+          <span>• Zero Vendor Lock-In</span>
         </div>
       </div>
     </section>
