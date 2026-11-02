@@ -17,7 +17,7 @@
 - [x] Cycle 4: Authentication & User Session Isolation
 - [x] Cycle 5: Navigation, Page Architecture & Route Guards
 - [x] Cycle 6: Onboarding, First-Run Experience & Help
-- [ ] Cycle 7: Security Hardening & Production Architecture Report
+- [x] Cycle 7: Security Hardening & Production Architecture Report
 - [ ] Cycle 8: FTS5 vs Vector DB Technical Evaluation
 - [ ] Cycle 9: Comprehensive Regression & Visual Audit
 
@@ -151,14 +151,33 @@
 ---
 
 ### Cycle 7 — Security Hardening & Production Architecture Report
+- **Status:** COMPLETED & VERIFIED
+- **Changes Implemented:**
+  - Hardened file path traversal boundaries in `server/diskSync.js`:
+    - Enforced `path.resolve` containment checks in `syncFileToDisk` and `deleteFileFromDisk` ensuring no writes/deletions escape `raw/` or `process/`.
+  - Audited SQL queries across all server routes: verified 100% parameterization with zero raw string template interpolations.
+  - Verified cryptographic salt randomization and timing-safe password verification.
+  - Verified ReactMarkdown XSS sanitization preventing malicious script executions.
+  - Published comprehensive production architecture document `PRODUCTION_ARCHITECTURE.md`:
+    - SQLite WAL mode & memory cache settings.
+    - Reverse proxy configurations for Caddy & Nginx with SSE LLM streaming support.
+    - Multi-stage Dockerfile and Docker Compose topology.
+    - Automated online snapshot and backup scripts.
+- **Verification Evidence:**
+  - `scratch/test_security_audit.mjs`: All 4 security hardening checks passed cleanly.
+  - `PRODUCTION_ARCHITECTURE.md` created and committed.
+  - Production build: `npm run build` passed in 6.11s with 0 errors.
+
+---
+
+### Cycle 8 — FTS5 vs Vector DB Technical Evaluation
 - **Status:** IN PROGRESS
 - **Objective:**
-  1. Conduct an end-to-end security audit across:
-     - SQL Injection prevention: all queries use parameterized inputs (`?`).
-     - Path Traversal prevention: check all file write/read paths to ensure they stay within designated directories.
-     - Auth token protection: constant-time comparison, salt randomization, httpOnly cookies.
-     - Markdown sanitization: prevention of unsafe script execution in Reading View.
-  2. Document production hosting architecture (e.g. Docker containerization, SQLite WAL mode, reverse proxy with Caddy/Nginx, environment variables).
+  1. Benchmark SQLite FTS5 search latency, memory footprint, and exact lexical/acronym recall.
+  2. Compare against Vector Database architectures (e.g. pgvector, Chroma, Pinecone, LanceDB).
+  3. Evaluate hybrid BM25 + dense embedding topologies.
+  4. Author a rigorous engineering decision record `FTS5_VS_VECTOR_EVALUATION.md`.
+
 
 
 

@@ -41,7 +41,13 @@ export function syncFileToDisk(file) {
   const isFormal = file.note_type === 'formal' || (file.title && file.title.includes('(Formal)'));
   const targetDir = isFormal ? PROCESS_DIR : RAW_DIR;
   const safeName = `${sanitizeFileName(file.title)}.md`;
-  const fullPath = path.join(targetDir, safeName);
+  const fullPath = path.resolve(targetDir, safeName);
+
+  // Security Hardening: Path Traversal Guard
+  if (!fullPath.startsWith(path.resolve(targetDir))) {
+    console.warn(`Path traversal attempt blocked: ${fullPath}`);
+    return;
+  }
 
   try {
     fs.writeFileSync(fullPath, file.content || '', 'utf8');
@@ -56,9 +62,14 @@ export function syncFileToDisk(file) {
 export function deleteFileFromDisk(file) {
   if (!file || !file.title) return;
   const safeName = `${sanitizeFileName(file.title)}.md`;
+  const rawPath = path.resolve(RAW_DIR, safeName);
+  const processPath = path.resolve(PROCESS_DIR, safeName);
 
-  const rawPath = path.join(RAW_DIR, safeName);
-  const processPath = path.join(PROCESS_DIR, safeName);
+  // Security Hardening: Path Traversal Guard
+  if (!rawPath.startsWith(path.resolve(RAW_DIR)) || !processPath.startsWith(path.resolve(PROCESS_DIR))) {
+    console.warn(`Path traversal attempt blocked in delete: ${safeName}`);
+    return;
+  }
 
   try {
     if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath);
