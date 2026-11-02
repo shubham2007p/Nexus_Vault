@@ -195,3 +195,4 @@ find "$BACKUP_DIR" -type f -mtime +7 -delete
 - [x] Salted `crypto.scrypt` password hashing with timing-safe comparison.
 - [x] Strict Safeguard 5 blocking incomplete conversation turns from polluting knowledge capture.
 - [x] React Markdown XSS sanitization rendering raw HTML safely.
+

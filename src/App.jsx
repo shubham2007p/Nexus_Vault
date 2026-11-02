@@ -1180,7 +1180,10 @@ export default function App() {
               onSearchChange={setConversationSearchQuery}
               workspaceMode={workspaceMode}
               onSwitchWorkspaceMode={handleSwitchWorkspaceMode}
-              onOpenFullGraph={() => setIsFullscreenGraph(true)}
+              onOpenFullGraph={() => {
+                setIsFullscreenGraph(true);
+                setIsRightPanelOpen(true);
+              }}
               files={files}
               onSelectFile={(id) => {
                 handleSelectFile(id);
@@ -1210,7 +1213,10 @@ export default function App() {
               onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
               workspaceMode={workspaceMode}
               onSwitchWorkspaceMode={handleSwitchWorkspaceMode}
-              onOpenFullGraph={() => setIsFullscreenGraph(true)}
+              onOpenFullGraph={() => {
+                setIsFullscreenGraph(true);
+                setIsRightPanelOpen(true);
+              }}
               theme={theme}
               onToggleTheme={toggleTheme}
               onCloseSidebar={() => setIsSidebarOpen(false)}
@@ -1239,7 +1245,10 @@ export default function App() {
             onSwitchToNotes={() => handleSwitchWorkspaceMode('notes')}
             onOpenNoteByTitle={handleOpenNoteByTitle}
             onOpenNoteById={handleOpenNoteById}
-            onOpenFullGraph={() => setIsFullscreenGraph(true)}
+            onOpenFullGraph={() => {
+              setIsFullscreenGraph(true);
+              setIsRightPanelOpen(true);
+            }}
             onOpenAIConfig={() => setIsAIConfigOpen(true)}
             aiConfig={aiConfig}
             isGenerating={isGeneratingReply}
@@ -1258,7 +1267,10 @@ export default function App() {
             onSave={handleSaveFile}
             onProcessAI={handleProcessAI}
             isAIProcessing={isAIProcessing}
-            onOpenFullGraph={() => setIsFullscreenGraph(true)}
+            onOpenFullGraph={() => {
+              setIsFullscreenGraph(true);
+              setIsRightPanelOpen(true);
+            }}
             onOpenSynthesis={handleOpenSynthesis}
             onOpenAIConfig={() => setIsAIConfigOpen(true)}
             aiConfig={aiConfig}

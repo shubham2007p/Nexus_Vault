@@ -97,3 +97,4 @@ export async function deleteSession(token) {
   if (!token) return;
   await dbRun(`DELETE FROM sessions WHERE token = ?`, [token.trim()]);
 }
+

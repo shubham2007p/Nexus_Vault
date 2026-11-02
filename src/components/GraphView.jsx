@@ -846,7 +846,8 @@ export default function GraphView({
                 return;
               }
 
-              const isDashed = link.edgeStyle === 'dashed' || link.status === 'pending' || Number(link.is_ai_suggested) === 1 || link.is_ai_suggested === true;
+              const isPending = link.status === 'pending' || Number(link.is_ai_suggested) === 1 || link.is_ai_suggested === true;
+              const isDashed = link.edgeStyle === 'dashed' || isPending;
               
               if (!showAILinks && (link.status === 'pending' || Number(link.is_ai_suggested) === 1)) {
                 return;
