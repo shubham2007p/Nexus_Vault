@@ -164,7 +164,7 @@ export default function KnowledgeGraphSection() {
             <span className="italic font-normal text-[#2D5A43]">See how raw captures and formal notes connect.</span>
           </h2>
           <p className="text-[#66605A] text-base sm:text-lg leading-relaxed">
-            In standard note apps, knowledge is buried inside linear folders. Nexus Vault renders a live, force-directed graph showing how your raw intuitions (<code className="font-mono text-xs text-[#2D5A43]">raw/</code>), formal companions (<code className="font-mono text-xs text-amber-700">process/</code>), and unwritten concepts link together.
+            In standard note apps, knowledge is buried inside linear folders. Chattifying renders a live, force-directed graph showing how your raw intuitions (<code className="font-mono text-xs text-[#2D5A43]">raw/</code>), formal companions (<code className="font-mono text-xs text-amber-700">process/</code>), and unwritten concepts link together.
           </p>
         </div>
 

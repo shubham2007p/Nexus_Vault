@@ -104,8 +104,8 @@ export default function HeroSection({ onLaunchApp }) {
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
               <span className="ml-2 font-mono text-[#a1a1aa] text-[11px] hidden sm:inline">
                 {activeView === 'raw'
-                  ? 'nexus-vault / raw / Backpropagation.md'
-                  : 'nexus-vault / process / Backpropagation (Formal).md'}
+                  ? 'chattifying / raw / Backpropagation.md'
+                  : 'chattifying / process / Backpropagation (Formal).md'}
               </span>
             </div>
 
@@ -435,7 +435,7 @@ export default function HeroSection({ onLaunchApp }) {
           {/* Subtitle Under Visual */}
           <div className="px-4 py-2.5 bg-[#151518] border-t border-[#26262c] flex flex-wrap items-center justify-between gap-2 text-xs text-[#a1a1aa]">
             <span>
-              Interactive preview of Nexus Vault v2.1 · Click{' '}
+              Interactive preview of Chattifying v2.1 · Click{' '}
               <button
                 onClick={scrollToSynthesis}
                 className="text-emerald-400 hover:underline font-medium cursor-pointer"

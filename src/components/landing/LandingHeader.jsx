@@ -34,7 +34,7 @@ export default function LandingHeader({ onLaunchApp }) {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="font-serif font-bold text-xl tracking-tight text-[#1C1917]">
-              Nexus Vault
+              Chattifying
             </span>
             <span className="hidden xl:inline-block text-[10px] font-mono uppercase tracking-wider text-[#2D5A43] px-2 py-0.5 rounded border border-[#B7D0C2] bg-[#EBF2EE] font-semibold">
               v2.1 Local-First

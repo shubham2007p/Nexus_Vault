@@ -55,7 +55,7 @@ export default function PatchNotesModal({ isOpen, onClose }) {
             <div>
               <div className="flex items-center gap-2">
                 <h2 id="patch-notes-title" className="text-sm font-semibold text-[#f4f4f5]">
-                  NexusVault Patch Notes & Power Guide
+                  Chattifying Patch Notes & Power Guide
                 </h2>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">
                   v2.1.0 Universal
@@ -90,7 +90,7 @@ export default function PatchNotesModal({ isOpen, onClose }) {
               </span>
             </div>
             <p className="text-[#a1a1aa] leading-relaxed">
-              Click the <strong className="text-[#f4f4f5]">AI / Robot button</strong> right next to the Save button in the editor to configure and switch AI models on the fly. Nexus Vault now supports <strong className="text-emerald-300">Groq Cloud (LPU)</strong>, <strong className="text-amber-300">Anthropic Claude</strong>, <strong className="text-emerald-400">OpenAI (ChatGPT)</strong>, <strong className="text-blue-400">Google Gemini</strong>, <strong className="text-purple-400">OpenRouter</strong>, <strong className="text-orange-400">Mistral AI</strong>, and <strong className="text-zinc-400">Local Ollama / LM Studio</strong>. Features real-time API key auto-detection and a live <em>Test Key & Model</em> latency benchmark.
+              Click the <strong className="text-[#f4f4f5]">AI / Robot button</strong> right next to the Save button in the editor to configure and switch AI models on the fly. Chattifying now supports <strong className="text-emerald-300">Groq Cloud (LPU)</strong>, <strong className="text-amber-300">Anthropic Claude</strong>, <strong className="text-emerald-400">OpenAI (ChatGPT)</strong>, <strong className="text-blue-400">Google Gemini</strong>, <strong className="text-purple-400">OpenRouter</strong>, <strong className="text-orange-400">Mistral AI</strong>, and <strong className="text-zinc-400">Local Ollama / LM Studio</strong>. Features real-time API key auto-detection and a live <em>Test Key & Model</em> latency benchmark.
             </p>
           </div>
 
@@ -207,7 +207,7 @@ export default function PatchNotesModal({ isOpen, onClose }) {
         <div className="px-6 py-3 border-t border-[#26262c] flex items-center justify-between bg-[#131316] shrink-0 text-xs text-[#71717a]">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            Nexus Vault v2.1.0 • Universal AI Engine Active
+            Chattifying v2.1.0 • Universal AI Engine Active
           </span>
           <button
             onClick={onClose}

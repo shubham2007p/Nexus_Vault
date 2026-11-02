@@ -106,7 +106,7 @@ export default function AiDiscoverySection() {
           </div>
           <h2 className="font-serif text-3xl sm:text-5xl font-bold tracking-tight text-[#1C1917] leading-[1.15] mb-5">
             Some connections are easy to miss. <br className="hidden sm:inline" />
-            <span className="italic font-normal text-[#2D5A43]">Let Nexus Vault surface them for your review.</span>
+            <span className="italic font-normal text-[#2D5A43]">Let Chattifying surface them for your review.</span>
           </h2>
           <p className="text-[#66605A] text-base sm:text-lg leading-relaxed">
             You never have to memorize or hand-type long link syntax. When you click{' '}

@@ -22,7 +22,7 @@ export default function LandingFooter({ onLaunchApp }) {
                 N
               </div>
               <span className="font-serif font-bold text-lg tracking-tight text-white">
-                Nexus Vault
+                Chattifying
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-800 text-emerald-400 border border-stone-700">
                 v2.1.0 Universal
@@ -131,7 +131,7 @@ export default function LandingFooter({ onLaunchApp }) {
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-400 text-[11px]">
           <div>
-            © 2026 Nexus Vault. Built by{' '}
+            © 2026 Chattifying. Built by{' '}
             <a
               href="https://github.com/shubham2007p"
               target="_blank"

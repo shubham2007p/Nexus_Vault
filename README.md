@@ -2,11 +2,11 @@
 
 <br/>
 
-<img src="support/nexus_vault_logo.jpg" alt="NexusVault Logo" width="220" style="border-radius: 20px; box-shadow: 0 0 30px rgba(112, 165, 253, 0.3);"/>
+<img src="support/nexus_vault_logo.jpg" alt="Chattifying Logo" width="220" style="border-radius: 20px; box-shadow: 0 0 30px rgba(112, 165, 253, 0.3);"/>
 
 <br/>
 
-<h1 align="center">⚡ NexusVault</h1>
+<h1 align="center">⚡ Chattifying</h1>
 
 <p align="center">
   <strong>An AI-Native Knowledge Vault — capture unstructured notes freely, and let an AI agent discover and propose contextual relationships between them.</strong>
@@ -57,7 +57,7 @@ Knowledge workers, students, and researchers accumulate large volumes of notes a
 
 ### 1.2 Proposed Solution
 
-**NexusVault** lets users write notes in plain Markdown using an Obsidian-style editor, supporting both **plain links** (`[[Note]]`) and **typed contextual links** (`[[Note | relationship | context]]`). 
+**Chattifying** lets users write notes in plain Markdown using an Obsidian-style editor, supporting both **plain links** (`[[Note]]`) and **typed contextual links** (`[[Note | relationship | context]]`). 
 
 At any point, the user can invoke an AI agent on a note (**"Process File"**), which reads the note content alongside all titles in the vault to propose new contextual relationships. The user reviews and **accepts** or **rejects** each suggestion, keeping a human in the loop while removing the manual burden of link discovery.
 
@@ -103,7 +103,7 @@ At any point, the user can invoke an AI agent on a note (**"Process File"**), wh
 
 ```mermaid
 graph LR
-    User([User]) <-->|notes, commands / rendered vault, suggestions| System[NexusVault System]
+    User([User]) <-->|notes, commands / rendered vault, suggestions| System[Chattifying System]
     System <-->|note + titles / proposed links| LLM[Claude / LLM API]
 
     style User fill:#1e1e2e,stroke:#89b4fa,color:#cdd6f4
@@ -111,7 +111,7 @@ graph LR
     style LLM fill:#313244,stroke:#a6e3a1,color:#cdd6f4
 ```
 
-*Figure 1: Level 0 DFD showing the User, the NexusVault system, and the external LLM API as the three high-level actors.*
+*Figure 1: Level 0 DFD showing the User, the Chattifying system, and the external LLM API as the three high-level actors.*
 
 ### 3.2 Level 1 DFD (Process Breakdown)
 
@@ -177,7 +177,7 @@ graph TD
 
 ## 5. Link Syntax & Grammar
 
-NexusVault supports two tiers of link syntax:
+Chattifying supports two tiers of link syntax:
 
 ### Plain Link (Standard Obsidian)
 ```markdown
@@ -224,7 +224,7 @@ OPENAI_API_KEY=sk-your_openai_key_here
 ANTHROPIC_API_KEY=sk-ant-your_anthropic_key_here
 GEMINI_API_KEY=AIzaSy_your_gemini_key_here
 ```
-*(If no API key is set, NexusVault defaults to its intelligent heuristic engine for link proposals. You can also configure and test keys on the fly using the in-app AI Model button next to Save).*
+*(If no API key is set, Chattifying defaults to its intelligent heuristic engine for link proposals. You can also configure and test keys on the fly using the in-app AI Model button next to Save).*
 
 ### 3. Run the Application
 
@@ -253,7 +253,7 @@ AI proposes, human disposes. Suggested links remain pending until accepted by th
 
 ## 📜 License
 
-NexusVault is **source-available**, not open-source.
+Chattifying is **source-available**, not open-source.
 
 ```
 ✅ Personal use          ✅ Educational use       ✅ Research

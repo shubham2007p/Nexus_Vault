@@ -12,7 +12,7 @@ export default function RealWorkUseCasesSection({ onLaunchApp }) {
       headline: 'Turn rushed lecture scribbles into linked, exam-ready companions.',
       scenario:
         'You write hurried, informal notes on "Singular Value Decomposition" during linear algebra class. Two months later, in a machine learning lab, you study "Principal Component Analysis" without realizing they share the exact same math.',
-      withNexusVault:
+      withChattifying:
         'Your original intuition stays untouched in raw/, while Synthesize generates a textbook-grade derivation in process/. Clicking Discover Links connects them via [[SVD | provides_basis_for | Decomposes covariance matrix to extract principal variance vectors]].',
       exampleNotes: ['raw/SVD Lecture.md', 'process/SVD (Formal).md', 'raw/PCA Lab.md'],
     },
@@ -23,8 +23,8 @@ export default function RealWorkUseCasesSection({ onLaunchApp }) {
       headline: 'Connect Architecture Decision Records (ADRs) to operational realities.',
       scenario:
         'You jot down rough debugging notes during an incident on WebSocket connection drops behind corporate proxies, weeks after writing the original architecture spec for real-time sync.',
-      withNexusVault:
-        'Nexus Vault formalizes your incident scratchpad into a structured engineering note in process/ and maps it back to your original design via [[Canvas Sync ADR | constrained_by | HTTP/2 sticky session routing requirements on load balancer]].',
+      withChattifying:
+        'Chattifying formalizes your incident scratchpad into a structured engineering note in process/ and maps it back to your original design via [[Canvas Sync ADR | constrained_by | HTTP/2 sticky session routing requirements on load balancer]].',
       exampleNotes: ['raw/Proxy Debug Log.md', 'process/WebSocket Postmortem.md', 'raw/Canvas Sync ADR.md'],
     },
     {
@@ -34,7 +34,7 @@ export default function RealWorkUseCasesSection({ onLaunchApp }) {
       headline: 'Trace mathematical lineages across dense literature.',
       scenario:
         'You read dozens of preprints across Transformer attention, recurrent networks, and state-space models. Standard folders and bare citation tags fail to capture how their underlying equations compare.',
-      withNexusVault:
+      withChattifying:
         'Synthesize formal mathematical comparisons in process/ and link papers by explicit mechanism: [[Transformer Attention | generalizes | Replaces sequential recurrence with parallel query-key similarity]] and [[Mamba SSM | improves_efficiency_of | Linear-time state space scaling vs quadratic attention]].',
       exampleNotes: ['raw/Attention Notes.md', 'process/Scaled Dot-Product (Formal).md', 'raw/Mamba SSM.md'],
     },
@@ -56,7 +56,7 @@ export default function RealWorkUseCasesSection({ onLaunchApp }) {
             <span className="italic font-normal text-[#2D5A43]">to a lasting body of knowledge.</span>
           </h2>
           <p className="text-[#66605A] text-base sm:text-lg leading-relaxed">
-            Nexus Vault adapts to the way technical learners and builders actually work. Here is how students, engineers, and researchers combine <code className="font-mono text-xs text-[#1C1917]">raw/</code> capture, <code className="font-mono text-xs text-[#1C1917]">process/</code> synthesis, and contextual links.
+            Chattifying adapts to the way technical learners and builders actually work. Here is how students, engineers, and researchers combine <code className="font-mono text-xs text-[#1C1917]">raw/</code> capture, <code className="font-mono text-xs text-[#1C1917]">process/</code> synthesis, and contextual links.
           </p>
         </div>
 
@@ -115,18 +115,18 @@ export default function RealWorkUseCasesSection({ onLaunchApp }) {
             {/* The Fragmented Reality */}
             <div className="p-5 rounded-lg bg-[#FAF8F5] border border-[#E7E2DA]">
               <div className="text-xs font-mono uppercase tracking-wider text-[#8C827A] mb-2 font-semibold">
-                Without Nexus Vault
+                Without Chattifying
               </div>
               <p className="text-[#66605A]">{current.scenario}</p>
             </div>
 
-            {/* With Nexus Vault */}
+            {/* With Chattifying */}
             <div className="p-5 rounded-lg bg-[#EBF2EE] border border-[#B7D0C2]">
               <div className="text-xs font-mono uppercase tracking-wider text-[#1C3A2B] mb-2 font-semibold flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-[#2D5A43]" />
-                <span>With Nexus Vault (raw/ + process/ + Graph)</span>
+                <span>With Chattifying (raw/ + process/ + Graph)</span>
               </div>
-              <p className="text-[#1C3A2B]">{current.withNexusVault}</p>
+              <p className="text-[#1C3A2B]">{current.withChattifying}</p>
             </div>
           </div>
 

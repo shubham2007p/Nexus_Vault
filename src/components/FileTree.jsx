@@ -162,13 +162,13 @@ export default function FileTree({
             <button
               onClick={() => setIsPatchNotesOpen(true)}
               className="flex items-center gap-2 hover:opacity-85 transition-opacity text-left cursor-pointer"
-              title="Nexus Vault — Click to view system info & shortcuts"
+              title="Chattifying — Click to view system info & shortcuts"
             >
               <div className="w-6 h-6 rounded-md bg-[#287D54]/10 dark:bg-emerald-500/15 border border-[#287D54]/25 dark:border-emerald-500/30 flex items-center justify-center shrink-0">
                 <BookOpen className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
               </div>
               <span className="font-semibold text-xs tracking-tight text-[#242824] dark:text-[#F4F4F5] truncate">
-                Nexus Vault
+                Chattifying
               </span>
             </button>
           </div>

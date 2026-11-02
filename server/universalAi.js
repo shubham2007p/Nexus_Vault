@@ -408,8 +408,8 @@ export async function callUniversalLLM({
     }
 
     if (normProvider === 'openrouter') {
-      headers['HTTP-Referer'] = 'https://nexus-vault.local';
-      headers['X-Title'] = 'Nexus Vault';
+      headers['HTTP-Referer'] = 'https://chattifying.local';
+      headers['X-Title'] = 'Chattifying';
     }
 
     const messages = [];
