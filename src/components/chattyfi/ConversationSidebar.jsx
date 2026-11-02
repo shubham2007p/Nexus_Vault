@@ -19,6 +19,7 @@ import {
   Share2,
   LogIn,
   LogOut,
+  HelpCircle,
 } from 'lucide-react';
 import DeleteConfirmModal from '../modals/DeleteConfirmModal';
 import PatchNotesModal from '../modals/PatchNotesModal';
@@ -264,6 +265,16 @@ export default function ConversationSidebar({
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Help & Power Guide Button */}
+            <button
+              onClick={() => setIsPatchNotesOpen(true)}
+              className="p-1.5 rounded-md text-[#666B65] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] hover:bg-[#E8EAE4] dark:hover:bg-[#202227] transition-colors cursor-pointer"
+              title="Help & Shortcuts Power Guide"
+              aria-label="Open Help Guide"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+
             {onToggleTheme && (
               <button
                 onClick={onToggleTheme}

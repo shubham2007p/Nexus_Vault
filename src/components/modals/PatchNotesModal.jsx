@@ -78,6 +78,77 @@ export default function PatchNotesModal({ isOpen, onClose }) {
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-xs text-[#d4d4d8]">
+          {/* v2.2 Knowledge Lifecycle Callout */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/40 via-[#181a20] to-[#17171a] border border-purple-500/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-purple-300 font-semibold text-xs">
+                <Sparkles className="w-4 h-4 text-purple-400" />
+                <span>New: ChattyFi Knowledge Capture & Knowledge Graph</span>
+              </div>
+              <span className="text-[10px] font-mono bg-[#111113] px-2 py-0.5 rounded border border-[#2e2e36] text-purple-300">
+                v2.2.0 Lifecycle
+              </span>
+            </div>
+            <p className="text-[#a1a1aa] leading-relaxed">
+              Transform discussions into permanent, interconnected knowledge. Assistant responses in ChattyFi now feature an interactive <strong className="text-[#f4f4f5]">Capture to Vault</strong> button with 3-zone confidence matching: automatically appends insights to existing relevant notes, prompts on ambiguous matches, and creates structured notes with source provenance and automatic wiki link extraction.
+            </p>
+          </div>
+
+          {/* Three Distinct Graph Experiences */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
+              <Network className="w-4 h-4 text-emerald-400" />
+              <span>Three Distinct Graph Perspectives</span>
+            </div>
+            <div className="pl-6 space-y-2 text-[#a1a1aa] leading-relaxed">
+              <p>
+                Switch between three tailored perspectives in both sidebar and full-screen graph views:
+              </p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong className="text-emerald-400">Notes Graph:</strong> Vault document nodes and wiki links with solid lines for confirmed links and dashed lines for AI suggestions. Supports Local neighborhood and Global vault views.
+                </li>
+                <li>
+                  <strong className="text-purple-400">Knowledge Graph:</strong> Persistent canonical topics and subtopics synthesized across all conversations.
+                </li>
+                <li>
+                  <strong className="text-blue-400">Conversation Graph:</strong> Scoped strictly to the active discussion thread, starting clean on new chats.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Slash Command Block Insertion */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
+              <Command className="w-4 h-4 text-amber-400" />
+              <span>Notion-Inspired Slash Commands in Edit View</span>
+            </div>
+            <div className="pl-6 space-y-1.5 text-[#a1a1aa] leading-relaxed">
+              <p>
+                Type <kbd className="px-1.5 py-0.5 bg-[#222227] rounded text-[#d4d4d8] font-mono">/</kbd> anywhere in the editor to open the floating command menu. Quickly insert:
+              </p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Headings (H1, H2, H3) and nested lists</li>
+                <li>Markdown Tables with interactive column/row picker</li>
+                <li>LaTeX Display Math blocks (<code className="text-amber-300 bg-[#222227] px-1 py-0.5 rounded">$$...$$</code>)</li>
+                <li>Syntax-highlighted Code Blocks with language selection</li>
+                <li>Obsidian Callout boxes (Note, Tip, Warning, Abstract, Danger)</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* User Isolation & Security */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-semibold text-[#f4f4f5]">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>User Accounts & Private Vault Isolation</span>
+            </div>
+            <p className="text-[#a1a1aa] leading-relaxed pl-6">
+              Create an account with cryptographic password protection (<code className="text-emerald-300 bg-[#222227] px-1 py-0.5 rounded">scrypt</code>). Unauthenticated users explore in Guest Demo mode with pre-seeded sample notes, while registered users enjoy completely isolated, private database tables and graphs.
+            </p>
+          </div>
+
           {/* Universal AI Hub Feature Callout */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-[#181a20] to-[#17171a] border border-emerald-500/30 space-y-2">
             <div className="flex items-center justify-between">

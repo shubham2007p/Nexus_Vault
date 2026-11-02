@@ -16,7 +16,7 @@
 - [x] Cycle 3: UI Integration of Knowledge Capture & Graph Switcher
 - [x] Cycle 4: Authentication & User Session Isolation
 - [x] Cycle 5: Navigation, Page Architecture & Route Guards
-- [ ] Cycle 6: Onboarding, First-Run Experience & Help
+- [x] Cycle 6: Onboarding, First-Run Experience & Help
 - [ ] Cycle 7: Security Hardening & Production Architecture Report
 - [ ] Cycle 8: FTS5 vs Vector DB Technical Evaluation
 - [ ] Cycle 9: Comprehensive Regression & Visual Audit
@@ -134,15 +134,32 @@
 ---
 
 ### Cycle 6 — Onboarding, First-Run Experience & Help
+- **Status:** COMPLETED & VERIFIED
+- **Changes Implemented:**
+  - Added visible, accessible Help `(?)` buttons in both `FileTree.jsx` (Notes sidebar) and `ConversationSidebar.jsx` (ChattyFi sidebar) headers right alongside the visual theme toggle.
+  - Enriched `src/components/modals/PatchNotesModal.jsx` with full v2.2.0 power documentation:
+    - Dedicated callout on the ChattyFi Knowledge Capture & Knowledge Graph lifecycle.
+    - Detailed documentation of the 3 Graph Perspectives (Notes Graph, Knowledge Graph, Conversation Graph).
+    - Guide for Notion-inspired slash commands (`/`) in Edit View.
+    - Security section detailing cryptographic password hashing and private user vault isolation.
+  - Preserved full keyboard accessibility: Escape key cleanly closes the Power Guide modal.
+- **Verification Evidence:**
+  - `scratch/test_browser_help.mjs`: Browser test passed cleanly verifying help button trigger and modal dismissal.
+  - Screenshot captured: `cycle6_help_power_guide.png`.
+  - Production build: `npm run build` passed in 6.11s with 0 errors.
+
+---
+
+### Cycle 7 — Security Hardening & Production Architecture Report
 - **Status:** IN PROGRESS
 - **Objective:**
-  1. Inspect existing onboarding guides or help dialogs (e.g. `PatchNotesModal`, keyboard shortcut hints).
-  2. Implement an interactive "Quick Tour / Onboarding Guide" modal that introduces users to:
-     - The Bi-Directional Knowledge Lifecycle (ChattyFi -> Vault Capture -> Knowledge Graph).
-     - Markdown Reading View & Slash Commands (`/` in Edit View).
-     - LaTeX Math, Code Blocks, and Obsidian-style Callouts.
-     - 3 Distinct Graph Modes (`Notes`, `Topics`, `Chat`).
-  3. Provide an easily accessible Help button `(?)` in the top right / sidebar.
+  1. Conduct an end-to-end security audit across:
+     - SQL Injection prevention: all queries use parameterized inputs (`?`).
+     - Path Traversal prevention: check all file write/read paths to ensure they stay within designated directories.
+     - Auth token protection: constant-time comparison, salt randomization, httpOnly cookies.
+     - Markdown sanitization: prevention of unsafe script execution in Reading View.
+  2. Document production hosting architecture (e.g. Docker containerization, SQLite WAL mode, reverse proxy with Caddy/Nginx, environment variables).
+
 
 
 
