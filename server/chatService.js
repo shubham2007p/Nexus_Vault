@@ -21,6 +21,14 @@ export class HttpError extends Error {
  * Enforces strict format validation and isolates single-user dev mode.
  */
 export function resolveUserContext(req) {
+  if (req?.user?.id) {
+    return {
+      userId: req.user.id,
+      user: req.user,
+      isDevSingleUserMode: req.user.id === DEV_WORKSPACE_USER_ID,
+    };
+  }
+
   const requireStrictAuth = process.env.CHATTYFI_REQUIRE_AUTH === 'true';
   const rawHeaderUser = req?.headers?.['x-user-id'];
 

@@ -8,6 +8,7 @@ import LandingPage from './components/landing/LandingPage';
 import AIReviewModal from './components/modals/AIReviewModal';
 import NoteSynthesisModal from './components/modals/NoteSynthesisModal';
 import AIConfigModal from './components/modals/AIConfigModal';
+import AuthModal from './components/modals/AuthModal';
 import ConversationSidebar from './components/chattyfi/ConversationSidebar';
 import ChattyFiView, { buildStage3StructuredReply } from './components/chattyfi/ChattyFiView';
 import { Sparkles, AlertCircle, Compass, Check } from 'lucide-react';
@@ -104,6 +105,8 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [capturingMessageId, setCapturingMessageId] = useState(null);
   const [ambiguousMatchData, setAmbiguousMatchData] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Theme state: defaults to light mode with persistent storage
   const [theme, setTheme] = useState(() => {
@@ -214,6 +217,60 @@ export default function App() {
     showToast(`Active AI Model: ${newConfig.activeProvider?.toUpperCase()} (${newConfig.activeModel || 'default'})`, 'success');
   };
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('nexus_session_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  useEffect(() => {
+    const checkAuthSession = async () => {
+      const token = localStorage.getItem('nexus_session_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setCurrentUser(data.user);
+          } else {
+            localStorage.removeItem('nexus_session_token');
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to verify session token:', err);
+      }
+    };
+    checkAuthSession();
+  }, []);
+
+  const handleAuthSuccess = async (user, token) => {
+    setCurrentUser(user);
+    showToast(`Signed in as ${user.name || user.email}`, 'success');
+    await fetchFiles();
+    await fetchGlobalGraph();
+    await fetchConversations();
+  };
+
+  const handleLogout = async () => {
+    const token = localStorage.getItem('nexus_session_token');
+    try {
+      if (token) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (e) { }
+    localStorage.removeItem('nexus_session_token');
+    setCurrentUser(null);
+    showToast('Signed out. Switched to Guest Vault.', 'info');
+    await fetchFiles();
+    await fetchGlobalGraph();
+    await fetchConversations();
+  };
+
   const handleReturnToLanding = () => {
     window.location.hash = '#/landing';
     setRoute('landing');
@@ -222,7 +279,9 @@ export default function App() {
   // Fetch file tree list
   const fetchFiles = async () => {
     try {
-      const res = await fetch('/api/files');
+      const res = await fetch('/api/files', {
+        headers: getAuthHeaders(),
+      });
       const data = await res.json();
       const fileList = Array.isArray(data) ? data : [];
       setFiles(fileList);
@@ -238,7 +297,9 @@ export default function App() {
   // Fetch full global graph
   const fetchGlobalGraph = async () => {
     try {
-      const res = await fetch('/api/graph');
+      const res = await fetch('/api/graph', {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         setGlobalGraphData(data);
@@ -283,7 +344,9 @@ export default function App() {
     try {
       setIsLoadingConversations(true);
       const qParam = query ? `?q=${encodeURIComponent(query)}` : '';
-      const res = await fetch(`/api/chattyfi/conversations${qParam}`);
+      const res = await fetch(`/api/chattyfi/conversations${qParam}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
@@ -307,7 +370,9 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(`/api/chattyfi/conversations/${id}`);
+      const res = await fetch(`/api/chattyfi/conversations/${id}`, {
+        headers: getAuthHeaders(),
+      });
       if (res.ok) {
         const data = await res.json();
         setActiveConversation(data);
@@ -1088,6 +1153,9 @@ export default function App() {
               onCloseSidebar={() => setIsSidebarOpen(false)}
               onReturnToLanding={handleReturnToLanding}
               isLoading={isLoadingConversations}
+              currentUser={currentUser}
+              onOpenAuthModal={() => setIsAuthModalOpen(true)}
+              onLogout={handleLogout}
             />
           ) : (
             <FileTree
@@ -1108,6 +1176,9 @@ export default function App() {
               onToggleTheme={toggleTheme}
               onCloseSidebar={() => setIsSidebarOpen(false)}
               onReturnToLanding={handleReturnToLanding}
+              currentUser={currentUser}
+              onOpenAuthModal={() => setIsAuthModalOpen(true)}
+              onLogout={handleLogout}
             />
           )}
         </ErrorBoundary>
@@ -1266,6 +1337,14 @@ export default function App() {
         onClose={() => setIsAIConfigOpen(false)}
         aiConfig={aiConfig}
         onSaveConfig={handleSaveAIConfig}
+        theme={theme}
+      />
+
+      {/* Account Authentication & Registration Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
         theme={theme}
       />
 

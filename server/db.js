@@ -194,6 +194,34 @@ export async function initDb() {
     );
   `);
 
+  // 1b. Authentication: Users & Sessions Tables
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT UNIQUE NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+  `);
+
+  // Ensure default demo user exists for local exploration
+  await dbRun(`
+    INSERT OR IGNORE INTO users (id, email, password_hash, name, created_at, updated_at)
+    VALUES ('default_user', 'demo@nexusvault.local', 'LOCAL_DEMO_GUEST', 'Demo Guest', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+  `);
+
   // 2. ChattyFi Knowledge Topics Table (created before files migration so topic_id FK is valid)
   await dbRun(`
     CREATE TABLE IF NOT EXISTS topics (

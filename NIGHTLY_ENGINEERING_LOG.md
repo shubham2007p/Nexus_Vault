@@ -14,7 +14,7 @@
 - [x] Cycle 1: Finish Knowledge Capture Backend & Linkage Pipeline
 - [x] Cycle 2: Three Distinct Graph Architecture (Conversation, Persistent Knowledge, Notes Graph)
 - [x] Cycle 3: UI Integration of Knowledge Capture & Graph Switcher
-- [ ] Cycle 4: Authentication & User Session Isolation
+- [x] Cycle 4: Authentication & User Session Isolation
 - [ ] Cycle 5: Navigation, Page Architecture & Route Guards
 - [ ] Cycle 6: Onboarding, First-Run Experience & Help
 - [ ] Cycle 7: Security Hardening & Production Architecture Report
@@ -85,13 +85,43 @@
 ---
 
 ### Cycle 4 — Authentication & Local User Session Security (Part 3)
+- **Status:** COMPLETED & VERIFIED
+- **Changes Implemented:**
+  - Added SQLite `users` and `sessions` tables in `server/db.js` with default seed for `'default_user'` guaranteeing backwards compatibility.
+  - Built `server/authService.js` with:
+    - Secure password hashing via `crypto.scrypt` with unique random salt.
+    - Timing-safe verification via `crypto.timingSafeEqual` preventing timing attacks.
+    - 30-day session token creation and deletion.
+  - Implemented backend auth endpoints in `server/index.js`:
+    - `POST /api/auth/register`: Validates email, enforces >=6 char passwords, creates user & session, sets httpOnly cookie and returns Bearer token.
+    - `POST /api/auth/login`: Constant-time verification, issues session token.
+    - `POST /api/auth/logout`: Revokes session from database and clears cookie.
+    - `GET /api/auth/me`: Resolves current user or returns `null` for guest mode.
+  - Implemented User Vault Isolation:
+    - `resolveUserContext` resolves authenticated user session and returns `userId`.
+    - Fallback: Unauthenticated requests seamlessly default to `default_user`, ensuring all existing demo notes and local workflows remain 100% accessible.
+    - Authenticated users operate in completely private, isolated database and graph silos.
+  - Built Frontend UI:
+    - `src/components/modals/AuthModal.jsx`: Notion-inspired modal with Sign In and Create Account tabs.
+    - Sidebar Account Status Bar in `FileTree.jsx` and `ConversationSidebar.jsx`: renders `Guest Mode` with `Sign In` button when unauthenticated, and user initials badge with name/email and `Log Out` button when authenticated.
+    - Connected `getAuthHeaders()` in `src/App.jsx` across all data fetches.
+- **Verification Evidence:**
+  - `scratch/test_auth_endpoints.mjs`: All 7 backend auth and vault isolation assertions passed cleanly.
+  - `scratch/test_browser_auth.mjs`: All 5 browser end-to-end integration tests passed cleanly in Chrome via CDP.
+  - Screenshots captured:
+    - `cycle4_auth_modal.png`
+    - `cycle4_authenticated_user.png`
+  - Production build: `npm run build` passed in 5.98s with 0 errors.
+
+---
+
+### Cycle 5 — Navigation, Page Architecture & Route Guards
 - **Status:** IN PROGRESS
 - **Objective:**
-  1. Add SQLite `users` table (`id`, `email`, `password_hash`, `name`, `created_at`).
-  2. Implement backend auth endpoints in `server/index.js` (`POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`).
-  3. Use secure Node.js standard library cryptographic hashing (`crypto.scrypt` with salt and timing-safe equal comparison).
-  4. Implement session token generation and verification via `nexus_session_token` cookie or Bearer header.
-  5. Enforce user isolation: fallback seamlessly to `default_user` when unauthenticated in local demo mode, while strictly isolating records when a user is signed in.
-  6. Add frontend Auth Modal / Account state in `src/App.jsx`.
+  1. Inspect and refine client-side routing between Landing Page (`#/landing`), ChattyFi (`#/chattyfi`), and Notes Vault (`#/notes` / `#/notes/:id`).
+  2. Implement route guards and deep-linking so refreshing or navigating directly to `#/notes`, `#/chattyfi`, or `#/landing` properly updates view state and active note.
+  3. Ensure browser back/forward buttons work naturally between workspaces.
+  4. Ensure mobile responsive drawers cleanly open/close on route switch.
+
 
 

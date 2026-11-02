@@ -17,6 +17,8 @@ import {
   Sparkles,
   FolderOpen,
   Share2,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import DeleteConfirmModal from '../modals/DeleteConfirmModal';
 import PatchNotesModal from '../modals/PatchNotesModal';
@@ -73,6 +75,9 @@ export default function ConversationSidebar({
   onCloseSidebar,
   onReturnToLanding,
   isLoading = false,
+  currentUser,
+  onOpenAuthModal,
+  onLogout,
 }) {
   const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -454,6 +459,44 @@ export default function ConversationSidebar({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* User Account Bar */}
+        <div className="px-3 py-2 border-t border-[#E3E5DF] dark:border-[#272A32] bg-[#F7F7F4] dark:bg-[#15161A] flex items-center justify-between text-xs shrink-0">
+          {currentUser ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-5 h-5 rounded-full bg-[#287D54] text-white flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
+                  {currentUser.name ? currentUser.name[0] : currentUser.email[0]}
+                </div>
+                <div className="min-w-0 truncate">
+                  <span className="font-medium text-[#242824] dark:text-[#F4F4F5] truncate block text-[11px]">
+                    {currentUser.name || currentUser.email}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={onLogout}
+                className="p-1 text-[#878C85] hover:text-red-500 rounded transition-colors cursor-pointer shrink-0 ml-1"
+                title="Log out of account"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[#878C85] dark:text-[#71717A] text-[11px] font-mono">
+                Guest Mode
+              </span>
+              <button
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1 text-[11px] font-medium text-[#287D54] dark:text-emerald-400 hover:underline cursor-pointer"
+              >
+                <LogIn className="w-3 h-3" />
+                <span>Sign In</span>
+              </button>
             </div>
           )}
         </div>

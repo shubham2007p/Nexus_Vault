@@ -1,7 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import crypto from 'node:crypto';
 import { initDb, dbAll, dbGet, dbRun, syncFileToFts, removeFileFromFts, rebuildVaultFts } from './db.js';
+import {
+  isValidEmail,
+  isValidPassword,
+  hashPassword,
+  verifyPassword,
+  createSession,
+  getSessionUser,
+  deleteSession,
+} from './authService.js';
 import { syncFileLinks } from './parser.js';
 import { processFileWithAI } from './ai.js';
 import { seedDatabase } from './seed.js';
@@ -54,6 +64,29 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 
+// Auth session token extraction middleware
+app.use(async (req, res, next) => {
+  try {
+    let token = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7).trim();
+    } else if (req.headers.cookie) {
+      const match = req.headers.cookie.match(/nexus_session_token=([^;]+)/);
+      if (match) token = match[1];
+    }
+    if (token) {
+      const sessionUser = await getSessionUser(token);
+      if (sessionUser) {
+        req.user = sessionUser;
+      }
+    }
+  } catch (err) {
+    console.warn('Auth token resolution error:', err.message);
+  }
+  next();
+});
+
 function sendRouteError(res, err) {
   const status = err?.status && Number.isInteger(err.status) ? err.status : 500;
   res.status(status).json({
@@ -68,6 +101,142 @@ await seedDatabase();
 await rebuildVaultFts();
 initDiskFolders();
 await syncAllFilesToDisk();
+
+// ==========================================
+// Authentication Endpoints (Part 3)
+// ==========================================
+
+// POST /api/auth/register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, name } = req.body || {};
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Valid email address is required', code: 'INVALID_EMAIL' });
+    }
+    if (!isValidPassword(password)) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long', code: 'INVALID_PASSWORD' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = await dbGet(`SELECT id FROM users WHERE email = ?`, [cleanEmail]);
+    if (existing) {
+      return res.status(409).json({ error: 'An account with this email already exists', code: 'USER_EXISTS' });
+    }
+
+    const userId = crypto.randomUUID();
+    const passwordHash = await hashPassword(password);
+    const now = new Date().toISOString();
+    const displayName = (name && typeof name === 'string' && name.trim()) ? name.trim() : cleanEmail.split('@')[0];
+
+    await dbRun(
+      `INSERT INTO users (id, email, password_hash, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+      [userId, cleanEmail, passwordHash, displayName, now, now]
+    );
+
+    const session = await createSession(userId);
+    res.cookie('nexus_session_token', session.token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(201).json({
+      success: true,
+      user: {
+        id: userId,
+        email: cleanEmail,
+        name: displayName,
+        createdAt: now,
+      },
+      token: session.token,
+    });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/auth/login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required', code: 'MISSING_CREDENTIALS' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await dbGet(`SELECT * FROM users WHERE email = ?`, [cleanEmail]);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' });
+    }
+
+    const isMatch = await verifyPassword(password, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' });
+    }
+
+    const session = await createSession(user.id);
+    res.cookie('nexus_session_token', session.token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        createdAt: user.created_at,
+      },
+      token: session.token,
+    });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/auth/logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    let token = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7).trim();
+    } else if (req.headers.cookie) {
+      const match = req.headers.cookie.match(/nexus_session_token=([^;]+)/);
+      if (match) token = match[1];
+    }
+
+    if (token) {
+      await deleteSession(token);
+    }
+
+    res.clearCookie('nexus_session_token');
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// GET /api/auth/me
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    if (req.user) {
+      return res.json({
+        user: {
+          id: req.user.id,
+          email: req.user.email,
+          name: req.user.name,
+          createdAt: req.user.createdAt,
+        },
+      });
+    }
+    res.json({ user: null });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
 
 // 1. GET /api/files - List all files with verified companion metadata (User-scoped)
 app.get('/api/files', async (req, res) => {
