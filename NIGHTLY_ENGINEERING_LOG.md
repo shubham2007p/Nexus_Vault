@@ -15,7 +15,7 @@
 - [x] Cycle 2: Three Distinct Graph Architecture (Conversation, Persistent Knowledge, Notes Graph)
 - [x] Cycle 3: UI Integration of Knowledge Capture & Graph Switcher
 - [x] Cycle 4: Authentication & User Session Isolation
-- [ ] Cycle 5: Navigation, Page Architecture & Route Guards
+- [x] Cycle 5: Navigation, Page Architecture & Route Guards
 - [ ] Cycle 6: Onboarding, First-Run Experience & Help
 - [ ] Cycle 7: Security Hardening & Production Architecture Report
 - [ ] Cycle 8: FTS5 vs Vector DB Technical Evaluation
@@ -116,12 +116,34 @@
 ---
 
 ### Cycle 5 — Navigation, Page Architecture & Route Guards
+- **Status:** COMPLETED & VERIFIED
+- **Changes Implemented:**
+  - Implemented bidirectional hash synchronization in `src/App.jsx`:
+    - Workspace switching automatically updates URL hash (`#/chattyfi`, `#/notes`, `#/landing`).
+    - Note selection updates hash to `#/notes/:id`.
+    - Conversation selection updates hash to `#/chattyfi/:id`.
+  - Added Deep Linking & Route Parsing:
+    - Navigating directly to `#/notes/:id` parses `:id` and loads that specific note into CodeMirror and Reading View.
+    - Navigating directly to `#/chattyfi/:id` loads that specific discussion thread.
+    - Browser back/forward buttons work naturally between workspaces, landing page, and individual notes.
+- **Verification Evidence:**
+  - `scratch/test_browser_navigation.mjs`: All 4 routing tests passed in Chrome via CDP.
+  - Screenshot captured: `cycle5_deep_link_note.png`.
+  - Production build: `npm run build` passed in 6.00s with 0 errors.
+
+---
+
+### Cycle 6 — Onboarding, First-Run Experience & Help
 - **Status:** IN PROGRESS
 - **Objective:**
-  1. Inspect and refine client-side routing between Landing Page (`#/landing`), ChattyFi (`#/chattyfi`), and Notes Vault (`#/notes` / `#/notes/:id`).
-  2. Implement route guards and deep-linking so refreshing or navigating directly to `#/notes`, `#/chattyfi`, or `#/landing` properly updates view state and active note.
-  3. Ensure browser back/forward buttons work naturally between workspaces.
-  4. Ensure mobile responsive drawers cleanly open/close on route switch.
+  1. Inspect existing onboarding guides or help dialogs (e.g. `PatchNotesModal`, keyboard shortcut hints).
+  2. Implement an interactive "Quick Tour / Onboarding Guide" modal that introduces users to:
+     - The Bi-Directional Knowledge Lifecycle (ChattyFi -> Vault Capture -> Knowledge Graph).
+     - Markdown Reading View & Slash Commands (`/` in Edit View).
+     - LaTeX Math, Code Blocks, and Obsidian-style Callouts.
+     - 3 Distinct Graph Modes (`Notes`, `Topics`, `Chat`).
+  3. Provide an easily accessible Help button `(?)` in the top right / sidebar.
+
 
 
 

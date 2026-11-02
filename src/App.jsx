@@ -144,17 +144,37 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash;
-      const path = window.location.pathname;
+      const hash = window.location.hash || '';
+      const path = window.location.pathname || '';
       if (hash === '#/landing' || path === '/landing') {
         setRoute('landing');
-      } else {
-        setRoute('app');
-        if (hash === '#/notes') setWorkspaceMode('notes');
-        if (hash === '#/chattyfi') setWorkspaceMode('chattyfi');
+        return;
+      }
+
+      setRoute('app');
+      if (hash.startsWith('#/notes')) {
+        setWorkspaceMode('notes');
+        const match = hash.match(/^#\/notes\/(\d+)/);
+        if (match && match[1]) {
+          const noteId = Number(match[1]);
+          if (noteId && noteId !== activeFileId) {
+            setActiveFileId(noteId);
+          }
+        }
+      } else if (hash.startsWith('#/chattyfi')) {
+        setWorkspaceMode('chattyfi');
+        const match = hash.match(/^#\/chattyfi\/([^/?]+)/);
+        if (match && match[1]) {
+          const convId = match[1];
+          if (convId && convId !== activeConversationId) {
+            setActiveConversationId(convId);
+          }
+        }
       }
     };
+
     window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
@@ -164,10 +184,16 @@ export default function App() {
     try {
       localStorage.setItem('nexus_workspace_mode', resolved);
     } catch (e) { }
+    if (resolved === 'notes') {
+      window.location.hash = activeFileId ? `#/notes/${activeFileId}` : '#/notes';
+    } else {
+      window.location.hash = activeConversationId ? `#/chattyfi/${activeConversationId}` : '#/chattyfi';
+    }
   };
 
   const handleLaunchApp = () => {
-    window.location.hash = '#/app';
+    const targetMode = workspaceMode || 'chattyfi';
+    window.location.hash = targetMode === 'notes' ? '#/notes' : '#/chattyfi';
     setRoute('app');
   };
 
@@ -434,12 +460,20 @@ export default function App() {
     const numericId = typeof id === 'number' ? id : Number(id);
     if (!Number.isInteger(numericId) || numericId <= 0) return;
     setActiveFileId(numericId);
+    if (workspaceMode === 'notes') {
+      window.location.hash = `#/notes/${numericId}`;
+    }
   };
 
   const handleOpenNoteById = (id) => {
     if (!id) return;
-    setActiveFileId(id);
-    handleSwitchWorkspaceMode('notes');
+    const numericId = typeof id === 'number' ? id : Number(id);
+    setActiveFileId(numericId);
+    setWorkspaceMode('notes');
+    try {
+      localStorage.setItem('nexus_workspace_mode', 'notes');
+    } catch (e) { }
+    window.location.hash = `#/notes/${numericId}`;
   };
 
   const handleOpenNoteByTitle = (title) => {
@@ -449,7 +483,11 @@ export default function App() {
     const match = safeList.find((f) => (f.title || '').trim().toLowerCase() === normalized);
     if (match) {
       setActiveFileId(match.id);
-      handleSwitchWorkspaceMode('notes');
+      setWorkspaceMode('notes');
+      try {
+        localStorage.setItem('nexus_workspace_mode', 'notes');
+      } catch (e) { }
+      window.location.hash = `#/notes/${match.id}`;
       showToast(`Opened note "${match.title}"`, 'info');
     } else {
       showToast(`Note "${title}" not yet created in vault`, 'info');
@@ -1131,6 +1169,7 @@ export default function App() {
               activeConversationId={activeConversationId}
               onSelectConversation={(id) => {
                 setActiveConversationId(id);
+                window.location.hash = `#/chattyfi/${id}`;
                 if (window.innerWidth < 768) setIsSidebarOpen(false);
               }}
               onCreateConversation={() => handleCreateConversation('Untitled Conversation')}
