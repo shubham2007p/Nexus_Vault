@@ -393,11 +393,22 @@ app.get('/api/files/:id/graph', async (req, res) => {
   }
 });
 
-// GET /api/graph - Global graph
+// GET /api/graph - Notes Graph (Document nodes & wiki links)
 app.get('/api/graph', async (req, res) => {
   try {
-    const allFiles = await dbAll(`SELECT id, title, path, note_type, raw_file_id, formal_file_id FROM files`);
-    const allLinks = await dbAll(`SELECT * FROM links`);
+    const { userId } = resolveUserContext(req);
+    const { type } = req.query;
+
+    // If query requests knowledge graph, redirect to knowledge graph builder
+    if (type === 'knowledge') {
+      return handleKnowledgeGraph(req, res, userId);
+    }
+
+    const allFiles = await dbAll(
+      `SELECT id, title, path, note_type, raw_file_id, formal_file_id FROM files WHERE user_id = ?`,
+      [userId]
+    );
+    const allLinks = await dbAll(`SELECT * FROM links WHERE user_id = ?`, [userId]);
 
     const nodesMap = new Map();
     const titleToId = new Map();
@@ -409,6 +420,7 @@ app.get('/api/graph', async (req, res) => {
         title: file.title,
         path: file.path,
         note_type: file.note_type || 'raw',
+        type: 'note',
         raw_file_id: file.raw_file_id,
         formal_file_id: file.formal_file_id,
         val: file.note_type === 'formal' ? 6 : 5,
@@ -433,6 +445,7 @@ app.get('/api/graph', async (req, res) => {
             isGhost: true,
             isUnresolved: true,
             note_type: 'ghost',
+            type: 'ghost_note',
             val: 3,
           });
         }
@@ -446,17 +459,315 @@ app.get('/api/graph', async (req, res) => {
         relationship: link.relationship,
         context: link.context,
         is_ai_suggested: link.is_ai_suggested === 1,
-        status: link.status,
+        edgeStyle: link.is_ai_suggested === 1 || link.status === 'pending' ? 'dashed' : 'solid',
+        status: link.status || 'accepted',
       });
     }
 
     res.json({
+      graphType: 'notes',
       nodes: Array.from(nodesMap.values()),
       edges,
       links: edges,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendRouteError(res, err);
+  }
+});
+
+// Helper for Persistent Knowledge Graph
+const handleKnowledgeGraph = async (req, res, userId) => {
+  try {
+    const topics = await dbAll(
+      `SELECT t.*,
+              (SELECT COUNT(DISTINCT ct.conversation_id) FROM conversation_topics ct WHERE ct.topic_id = t.id) as conversation_count,
+              (SELECT AVG(ct.match_confidence) FROM conversation_topics ct WHERE ct.topic_id = t.id) as avg_confidence,
+              rf.title as raw_note_title, rf.path as raw_note_path,
+              pf.title as formal_note_title, pf.path as formal_note_path
+       FROM topics t
+       LEFT JOIN files rf ON t.raw_file_id = rf.id
+       LEFT JOIN files pf ON t.processed_file_id = pf.id
+       WHERE t.user_id = ?`,
+      [userId]
+    );
+
+    const nodesMap = new Map();
+    const edges = [];
+
+    for (const t of topics) {
+      const topicNodeId = `topic-${t.id}`;
+      nodesMap.set(topicNodeId, {
+        id: topicNodeId,
+        topicId: t.id,
+        title: t.name,
+        name: t.name,
+        type: 'persistent_topic',
+        val: 7,
+        summary: t.summary || '',
+        conversation_count: t.conversation_count || 0,
+        avg_confidence: t.avg_confidence ? Number(Number(t.avg_confidence).toFixed(2)) : 1.0,
+      });
+
+      // Parse subtopic keywords
+      let keywords = [];
+      try {
+        keywords = typeof t.keywords === 'string' ? JSON.parse(t.keywords) : (t.keywords || []);
+      } catch (e) {
+        keywords = [];
+      }
+
+      if (Array.isArray(keywords)) {
+        for (const kw of keywords) {
+          if (!kw || typeof kw !== 'string') continue;
+          const cleanKw = kw.trim();
+          const subtopicId = `subtopic-${t.id}-${cleanKw.toLowerCase().replace(/\s+/g, '_')}`;
+          if (!nodesMap.has(subtopicId)) {
+            nodesMap.set(subtopicId, {
+              id: subtopicId,
+              title: cleanKw,
+              name: cleanKw,
+              type: 'subtopic',
+              parentTopic: t.name,
+              val: 4,
+            });
+          }
+          edges.push({
+            id: `edge-${topicNodeId}-${subtopicId}`,
+            source: topicNodeId,
+            target: subtopicId,
+            relationship: 'contains_subtopic',
+            edgeStyle: 'solid',
+          });
+        }
+      }
+
+      // Link to canonically documented notes if present
+      if (t.raw_file_id && t.raw_note_title) {
+        const noteNodeId = t.raw_file_id;
+        if (!nodesMap.has(noteNodeId)) {
+          nodesMap.set(noteNodeId, {
+            id: noteNodeId,
+            title: t.raw_note_title,
+            name: t.raw_note_title,
+            type: 'note',
+            path: t.raw_note_path,
+            note_type: 'raw',
+            val: 5,
+          });
+        }
+        edges.push({
+          id: `edge-topic-raw-${t.id}-${t.raw_file_id}`,
+          source: topicNodeId,
+          target: noteNodeId,
+          relationship: 'canonically_documented_in',
+          edgeStyle: 'solid',
+        });
+      }
+
+      if (t.processed_file_id && t.formal_note_title) {
+        const formalNodeId = t.processed_file_id;
+        if (!nodesMap.has(formalNodeId)) {
+          nodesMap.set(formalNodeId, {
+            id: formalNodeId,
+            title: t.formal_note_title,
+            name: t.formal_note_title,
+            type: 'note',
+            path: t.formal_note_path,
+            note_type: 'formal',
+            val: 6,
+          });
+        }
+        edges.push({
+          id: `edge-topic-formal-${t.id}-${t.processed_file_id}`,
+          source: topicNodeId,
+          target: formalNodeId,
+          relationship: 'canonically_synthesized_in',
+          edgeStyle: 'solid',
+        });
+      }
+    }
+
+    res.json({
+      graphType: 'knowledge',
+      nodes: Array.from(nodesMap.values()),
+      edges,
+      links: edges,
+    });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+};
+
+// GET /api/knowledge-graph - Direct Persistent Knowledge Graph endpoint
+app.get('/api/knowledge-graph', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    return handleKnowledgeGraph(req, res, userId);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// GET /api/chattyfi/conversations/:id/graph - Conversation Graph (Scoped to an individual conversation)
+app.get('/api/chattyfi/conversations/:id/graph', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const conversationId = req.params.id;
+
+    await assertConversationOwnership(userId, conversationId);
+
+    // Fetch topics associated with this specific conversation
+    const associatedTopics = await dbAll(
+      `SELECT ct.id as junction_id, ct.topic_id, ct.match_confidence, ct.match_zone, ct.message_count,
+              t.name as topic_name, t.normalized_name, t.summary, t.keywords, t.raw_file_id, t.processed_file_id,
+              rf.title as raw_note_title, rf.path as raw_note_path,
+              pf.title as formal_note_title, pf.path as formal_note_path
+       FROM conversation_topics ct
+       JOIN topics t ON ct.topic_id = t.id
+       LEFT JOIN files rf ON t.raw_file_id = rf.id
+       LEFT JOIN files pf ON t.processed_file_id = pf.id
+       WHERE ct.conversation_id = ? AND ct.user_id = ?`,
+      [conversationId, userId]
+    );
+
+    // Fetch messages in this conversation to identify captured notes and referenced concepts
+    const messages = await dbAll(
+      `SELECT id, role, content, topic_id, processing_metadata FROM messages WHERE conversation_id = ? AND user_id = ?`,
+      [conversationId, userId]
+    );
+
+    // If conversation is brand new (no topics and no messages), return clean empty graph
+    if (associatedTopics.length === 0 && messages.length === 0) {
+      return res.json({
+        graphType: 'conversation',
+        conversationId,
+        nodes: [],
+        edges: [],
+        links: [],
+      });
+    }
+
+    const nodesMap = new Map();
+    const edges = [];
+
+    // Add topic nodes scoped to this conversation
+    for (const at of associatedTopics) {
+      const topicNodeId = `topic-${at.topic_id}`;
+      nodesMap.set(topicNodeId, {
+        id: topicNodeId,
+        topicId: at.topic_id,
+        title: at.topic_name,
+        name: at.topic_name,
+        type: 'conversation_topic',
+        val: 7,
+        match_zone: at.match_zone,
+        match_confidence: at.match_confidence,
+        message_count: at.message_count,
+      });
+
+      // Parse subtopic keywords
+      let keywords = [];
+      try {
+        keywords = typeof at.keywords === 'string' ? JSON.parse(at.keywords) : (at.keywords || []);
+      } catch (e) {
+        keywords = [];
+      }
+
+      if (Array.isArray(keywords)) {
+        for (const kw of keywords) {
+          if (!kw || typeof kw !== 'string') continue;
+          const cleanKw = kw.trim();
+          const subtopicId = `subtopic-${at.topic_id}-${cleanKw.toLowerCase().replace(/\s+/g, '_')}`;
+          if (!nodesMap.has(subtopicId)) {
+            nodesMap.set(subtopicId, {
+              id: subtopicId,
+              title: cleanKw,
+              name: cleanKw,
+              type: 'subtopic',
+              parentTopic: at.topic_name,
+              val: 4,
+            });
+          }
+          edges.push({
+            id: `edge-${topicNodeId}-${subtopicId}`,
+            source: topicNodeId,
+            target: subtopicId,
+            relationship: 'subtopic_of',
+            edgeStyle: 'solid',
+          });
+        }
+      }
+
+      // Link to captured notes if linked to this conversation
+      if (at.raw_file_id && at.raw_note_title) {
+        const noteNodeId = at.raw_file_id;
+        if (!nodesMap.has(noteNodeId)) {
+          nodesMap.set(noteNodeId, {
+            id: noteNodeId,
+            title: at.raw_note_title,
+            name: at.raw_note_title,
+            type: 'captured_note',
+            path: at.raw_note_path,
+            note_type: 'raw',
+            val: 5,
+          });
+        }
+        edges.push({
+          id: `edge-conv-raw-${at.topic_id}-${at.raw_file_id}`,
+          source: topicNodeId,
+          target: noteNodeId,
+          relationship: 'captured_to_vault',
+          edgeStyle: 'solid',
+        });
+      }
+    }
+
+    // Inspect messages for direct note captures or explicit [[Wiki Links]] in conversation turns
+    for (const msg of messages) {
+      let meta = {};
+      try {
+        meta = typeof msg.processing_metadata === 'string' ? JSON.parse(msg.processing_metadata) : (msg.processing_metadata || {});
+      } catch (e) {
+        meta = {};
+      }
+
+      if (meta.raw_file_id) {
+        const noteId = meta.raw_file_id;
+        if (!nodesMap.has(noteId)) {
+          const fileRow = await dbGet(`SELECT id, title, path, note_type FROM files WHERE id = ? AND user_id = ?`, [noteId, userId]);
+          if (fileRow) {
+            nodesMap.set(noteId, {
+              id: noteId,
+              title: fileRow.title,
+              name: fileRow.title,
+              type: 'captured_note',
+              path: fileRow.path,
+              note_type: fileRow.note_type,
+              val: 5,
+            });
+            if (msg.topic_id && nodesMap.has(`topic-${msg.topic_id}`)) {
+              edges.push({
+                id: `edge-msg-capture-${msg.id}-${noteId}`,
+                source: `topic-${msg.topic_id}`,
+                target: noteId,
+                relationship: 'captured_from_turn',
+                edgeStyle: 'solid',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    res.json({
+      graphType: 'conversation',
+      conversationId,
+      nodes: Array.from(nodesMap.values()),
+      edges,
+      links: edges,
+    });
+  } catch (err) {
+    sendRouteError(res, err);
   }
 });
 
@@ -1322,6 +1633,249 @@ app.post('/api/chattyfi/conversations/:id/reply', async (req, res) => {
     });
   } catch (err) {
     if (isClientClosed) return;
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/chattyfi/conversations/:id/capture - ChattyFi -> Notes Vault Knowledge Capture Pipeline
+app.post('/api/chattyfi/conversations/:id/capture', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const conversationId = req.params.id;
+    const { messageId, format = 'raw', preferredTitle, overrideAction, targetFileId: explicitTargetId } = req.body || {};
+
+    const conv = await assertConversationOwnership(userId, conversationId);
+
+    // Retrieve target message
+    let message;
+    if (messageId) {
+      message = await dbGet(
+        `SELECT * FROM messages WHERE id = ? AND conversation_id = ? AND user_id = ?`,
+        [messageId, conversationId, userId]
+      );
+      if (!message) {
+        return res.status(404).json({ error: 'Message not found in this conversation' });
+      }
+    } else {
+      // Pick latest completed assistant message
+      message = await dbGet(
+        `SELECT * FROM messages WHERE conversation_id = ? AND user_id = ? AND role = 'assistant' AND generation_status = 'completed' ORDER BY created_at DESC LIMIT 1`,
+        [conversationId, userId]
+      );
+      if (!message) {
+        return res.status(400).json({ error: 'No completed assistant message found to capture' });
+      }
+    }
+
+    // Safeguard 5 Check: Incomplete or interrupted messages cannot be captured into vault
+    if (message.generation_status !== 'completed' || !message.content || message.content.trim() === '') {
+      return res.status(400).json({
+        error: 'Cannot capture an incomplete, interrupted, or empty message into the knowledge vault (Safeguard 5).',
+        code: 'INCOMPLETE_MESSAGE_CAPTURE',
+      });
+    }
+
+    // Parse existing processing metadata
+    let existingMeta = {};
+    try {
+      existingMeta = typeof message.processing_metadata === 'string'
+        ? JSON.parse(message.processing_metadata)
+        : (message.processing_metadata || {});
+    } catch (e) {
+      existingMeta = {};
+    }
+
+    // Idempotency check: if already captured and file still exists, return existing
+    const existingFileId = format === 'formal' ? existingMeta.formal_file_id : existingMeta.raw_file_id;
+    if (existingFileId && overrideAction !== 'create_new' && overrideAction !== 'append_existing') {
+      const existingFile = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [existingFileId, userId]);
+      if (existingFile) {
+        return res.json({
+          success: true,
+          status: 'already_captured',
+          action: 'idempotent_noop',
+          file: existingFile,
+          messageId: message.id,
+        });
+      }
+    }
+
+    // Determine clean title for the note
+    let conceptTitle = preferredTitle ? String(preferredTitle).trim() : '';
+    if (!conceptTitle) {
+      const headingMatch = message.content.match(/^#{1,3}\s+([^\n]+)/m);
+      if (headingMatch && headingMatch[1]) {
+        conceptTitle = headingMatch[1].replace(/[*_`\[\]]/g, '').trim();
+      } else {
+        conceptTitle = conv.title !== 'Untitled Conversation' && conv.title !== 'New Conversation'
+          ? conv.title
+          : message.content.slice(0, 48).replace(/\n+/g, ' ').replace(/[*_`\[\]]/g, '').trim() || 'Captured Insight';
+      }
+    }
+    conceptTitle = conceptTitle.replace(/[\\/:*?"<>|]/g, '').trim();
+    if (!conceptTitle) conceptTitle = 'Captured Insight';
+
+    // Deduplication Search using SQLite FTS5 BM25 with 3-zone confidence scoring
+    const searchMatches = await searchVaultKnowledgeFts(userId, conceptTitle, 5);
+    const topMatch = searchMatches[0] || null;
+
+    // Check if match is ambiguous and user hasn't explicitly specified overrideAction
+    if (topMatch && topMatch.match_zone === 'ambiguous' && !overrideAction) {
+      return res.json({
+        success: true,
+        status: 'ambiguous_match',
+        message: 'Similar existing notes detected in your vault.',
+        candidateTitle: conceptTitle,
+        matches: searchMatches.slice(0, 3).map((m) => ({
+          file_id: m.file_id,
+          title: m.title,
+          path: m.path,
+          match_confidence: m.match_confidence,
+          match_zone: m.match_zone,
+        })),
+        messageId: message.id,
+        actionsAvailable: ['append_existing', 'create_new'],
+      });
+    }
+
+    let targetFile = null;
+    let actionTaken = 'created_new';
+    const now = new Date().toISOString();
+    const dateFormatted = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    // High confidence match (>= 0.78) or explicit append: append section preserving provenance
+    if (
+      (topMatch && (topMatch.match_confidence >= 0.78 || topMatch.title.toLowerCase() === conceptTitle.toLowerCase()) && overrideAction !== 'create_new') ||
+      overrideAction === 'append_existing'
+    ) {
+      const targetNoteId = overrideAction === 'append_existing' && explicitTargetId
+        ? explicitTargetId
+        : (topMatch ? topMatch.file_id : null);
+
+      const existingNote = targetNoteId
+        ? await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [targetNoteId, userId])
+        : null;
+
+      if (existingNote) {
+        const provenanceSection = [
+          '',
+          `## Captured Conversation Insights (${dateFormatted})`,
+          `> 💬 **Source Conversation:** [[${conv.title}]]`,
+          `> 🔗 **Message Provenance:** \`${message.id}\``,
+          '',
+          message.content,
+          '',
+        ].join('\n');
+
+        const updatedContent = existingNote.content.trimEnd() + '\n' + provenanceSection;
+        await dbRun(`UPDATE files SET content = ?, updated_at = ? WHERE id = ? AND user_id = ?`, [
+          updatedContent,
+          now,
+          existingNote.id,
+          userId,
+        ]);
+
+        await syncFileLinks(existingNote.id, updatedContent);
+        await syncFileToFts(existingNote.id);
+        targetFile = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [existingNote.id, userId]);
+        if (userId === 'default_user') {
+          syncFileToDisk(targetFile);
+        }
+        actionTaken = 'appended_existing';
+      }
+    }
+
+    // If not appended to existing note, create a fresh note
+    if (!targetFile) {
+      const folder = format === 'formal' ? 'process' : 'raw';
+      const pathPrefix = userId === 'default_user' ? folder : `${folder}/${userId}`;
+      let finalPath = `${pathPrefix}/${conceptTitle}.md`;
+      let counter = 1;
+      while (await dbGet(`SELECT id FROM files WHERE path = ?`, [finalPath])) {
+        finalPath = `${pathPrefix}/${conceptTitle} ${counter}.md`;
+        counter++;
+      }
+
+      const noteHeader = [
+        `> [!NOTE] Captured Knowledge`,
+        `> 💬 **Source Conversation:** [[${conv.title}]]`,
+        `> 🕒 **Captured on:** ${dateFormatted}`,
+        '',
+        '',
+      ].join('\n');
+
+      const noteBody = message.content.startsWith('# ')
+        ? message.content
+        : `# ${conceptTitle}\n\n${message.content}`;
+
+      const fullContent = noteHeader + noteBody;
+
+      const insResult = await dbRun(
+        `INSERT INTO files (title, path, content, note_type, source_type, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, 'chattyfi', ?, ?, ?)`,
+        [conceptTitle, finalPath, fullContent, format, userId, now, now]
+      );
+
+      const newFileId = insResult.lastID;
+      await syncFileLinks(newFileId, fullContent);
+      await syncFileToFts(newFileId);
+      targetFile = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [newFileId, userId]);
+      if (userId === 'default_user') {
+        syncFileToDisk(targetFile);
+      }
+      actionTaken = 'created_new';
+    }
+
+    // Associate Conversation Topic and Link Topic to File
+    const topicResult = await associateConversationTopic(userId, conversationId, {
+      topicName: conceptTitle,
+      messageId: message.id,
+      matchConfidence: topMatch ? topMatch.match_confidence : 1.0,
+    });
+
+    if (topicResult?.topic?.id) {
+      const topicUpdateCol = format === 'formal' ? 'processed_file_id' : 'raw_file_id';
+      await dbRun(
+        `UPDATE topics SET ${topicUpdateCol} = COALESCE(${topicUpdateCol}, ?), updated_at = ? WHERE id = ? AND user_id = ?`,
+        [targetFile.id, now, topicResult.topic.id, userId]
+      );
+      await dbRun(
+        `UPDATE files SET topic_id = COALESCE(topic_id, ?) WHERE id = ? AND user_id = ?`,
+        [topicResult.topic.id, targetFile.id, userId]
+      );
+    }
+
+    // Update Message processing status and metadata
+    const updatedMetadata = {
+      ...existingMeta,
+      raw_file_id: format === 'raw' ? targetFile.id : existingMeta.raw_file_id,
+      formal_file_id: format === 'formal' ? targetFile.id : existingMeta.formal_file_id,
+      captured_at: now,
+      capture_action: actionTaken,
+      concept_title: conceptTitle,
+    };
+
+    await dbRun(
+      `UPDATE messages SET processing_status = 'completed', topic_id = ?, processing_metadata = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+      [topicResult?.topic?.id || message.topic_id, JSON.stringify(updatedMetadata), now, message.id, userId]
+    );
+
+    // Query active links for this file to report graph relationships created
+    const createdLinks = await dbAll(`SELECT * FROM links WHERE source_file_id = ?`, [targetFile.id]);
+
+    res.status(201).json({
+      success: true,
+      status: actionTaken,
+      file: targetFile,
+      topic: topicResult?.topic || null,
+      messageId: message.id,
+      linksCount: createdLinks.length,
+      links: createdLinks,
+    });
+  } catch (err) {
     sendRouteError(res, err);
   }
 });
