@@ -46,7 +46,7 @@ export default function ContextualLinksSection() {
             <span className="italic font-normal text-[#2D5A43]">when you remember why you made it.</span>
           </h2>
           <p className="text-[#66605A] text-base sm:text-lg leading-relaxed">
-            Standard wikilinks only record that two notes touch—forcing you to re-read both files months later to remember how they relate. Chattifying upgrades links into self-documenting relationships right inside plain Markdown.
+            Standard wikilinks only record that two notes touch—forcing you to re-read both files months later to remember how they relate. Nexus Vault upgrades links into self-documenting relationships right inside plain Markdown.
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export default function ContextualLinksSection() {
           ))}
         </div>
 
-        {/* Side-by-Side Comparison: Bare Wikilink vs Chattifying Contextual Link */}
+        {/* Side-by-Side Comparison: Bare Wikilink vs Nexus Vault Contextual Link */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-14">
           {/* Left: Standard Wikilink */}
           <div className="rounded-xl border border-[#E7E2DA] bg-white p-7 shadow-xs flex flex-col justify-between">
@@ -109,11 +109,11 @@ export default function ContextualLinksSection() {
             </div>
 
             <div className="mt-8 text-xs font-mono text-[#8C827A] p-2.5 rounded bg-[#FAF8F5] border border-[#E7E2DA]">
-              Supported in Chattifying for quick links: <code className="text-[#1C1917]">[[Target Note]]</code>
+              Supported in Nexus Vault for quick links: <code className="text-[#1C1917]">[[Target Note]]</code>
             </div>
           </div>
 
-          {/* Right: Chattifying Contextual Link */}
+          {/* Right: Nexus Vault Contextual Link */}
           <div className="rounded-xl border-2 border-[#2D5A43] bg-white p-7 shadow-md flex flex-col justify-between relative overflow-hidden">
             {/* Top Accent Strip */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-[#2D5A43]" />
@@ -121,7 +121,7 @@ export default function ContextualLinksSection() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-mono uppercase tracking-wider text-[#2D5A43] font-bold">
-                  Chattifying Contextual Link
+                  Nexus Vault Contextual Link
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#EBF2EE] border border-[#B7D0C2] text-[10px] text-[#1C3A2B] font-mono font-semibold">
                   Target + Relationship + Why
@@ -180,7 +180,7 @@ export default function ContextualLinksSection() {
               <div className="text-[10px] font-mono uppercase text-[#8C827A] mb-1">Part 1 · Where</div>
               <div className="font-serif font-bold text-base text-[#1C1917] mb-1">Destination Note</div>
               <p className="text-xs text-[#66605A] leading-relaxed">
-                The title of the connected note (e.g., <code className="font-mono text-[#1C1917] bg-[#FAF8F5] px-1 rounded">{current.target}</code>). If that note hasn't been written yet, Chattifying displays a phantom node on the graph until you create it.
+                The title of the connected note (e.g., <code className="font-mono text-[#1C1917] bg-[#FAF8F5] px-1 rounded">{current.target}</code>). If that note hasn't been written yet, Nexus Vault displays a phantom node on the graph until you create it.
               </p>
             </div>
 

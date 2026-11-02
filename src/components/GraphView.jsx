@@ -17,6 +17,19 @@ import {
 } from 'lucide-react';
 import { forceCollide, forceCenter } from 'd3-force-3d';
 
+function getNodeTitle(node) {
+  return node?.title || node?.name || 'Untitled';
+}
+
+function isGhostNode(node) {
+  return Boolean(
+    node?.isGhost ||
+      node?.isUnresolved ||
+      node?.note_type === 'ghost' ||
+      (typeof node?.id === 'string' && node.id.startsWith('ghost'))
+  );
+}
+
 export default function GraphView({
   graphData,
   globalGraphData,
@@ -174,8 +187,14 @@ export default function GraphView({
     return {
       nodes: sorted.map((n) => {
         const saved = nodePositionsRef.current.get(n.id);
+        const resolvedTitle = getNodeTitle(n);
+        const unresolved = isGhostNode(n);
         return {
           ...n,
+          title: resolvedTitle,
+          name: n.name || resolvedTitle,
+          isGhost: unresolved,
+          isUnresolved: unresolved,
           isCenter: n.isCenter || n.id === activeFileId,
           x: saved?.x ?? n.x,
           y: saved?.y ?? n.y,
@@ -265,7 +284,7 @@ export default function GraphView({
 
   const activeNodeTitle = useMemo(() => {
     const target = nodes.find((n) => n.id === activeFileId);
-    return target?.title || 'Selected Note';
+    return target ? getNodeTitle(target) : 'Selected Note';
   }, [nodes, activeFileId]);
 
   const graphContent = (
@@ -501,14 +520,14 @@ export default function GraphView({
 
               const isCenter = node.isCenter || node.id === activeFileId;
               const isHovered = hoveredNode && hoveredNode.id === node.id;
-              const isUnresolved = node.isUnresolved;
+              const isUnresolved = isGhostNode(node);
+              const nodeTitle = getNodeTitle(node);
               const isMatch =
-                searchQuery &&
-                node.title &&
-                node.title.toLowerCase().includes(searchQuery.toLowerCase().trim());
+                Boolean(searchQuery) &&
+                nodeTitle.toLowerCase().includes(searchQuery.toLowerCase().trim());
 
               const baseR = isCenter ? 5.8 : isHovered ? 5.2 : isUnresolved ? 3.2 : 3.8;
-              const displayLabel = node.title || 'Untitled';
+              const displayLabel = nodeTitle;
 
               // 1. Subtle Selection Ring (Quiet, No Blurry Glow)
               if (isHovered || isCenter || isMatch) {
@@ -732,8 +751,10 @@ export default function GraphView({
               }
             }}
             onNodeClick={(node) => {
-              if (node.id && typeof node.id === 'number') {
-                onSelectFile(node.id);
+              if (!node || isGhostNode(node)) return;
+              const numericId = typeof node.id === 'number' ? node.id : Number(node.id);
+              if (Number.isInteger(numericId) && numericId > 0) {
+                onSelectFile(numericId);
               }
             }}
           />

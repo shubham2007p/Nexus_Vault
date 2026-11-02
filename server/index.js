@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initDb, dbAll, dbGet, dbRun } from './db.js';
+import { initDb, dbAll, dbGet, dbRun, syncFileToFts, removeFileFromFts, rebuildVaultFts } from './db.js';
 import { syncFileLinks } from './parser.js';
 import { processFileWithAI } from './ai.js';
 import { seedDatabase } from './seed.js';
@@ -25,6 +25,26 @@ import {
   deleteFileFromDisk,
   syncAllFilesToDisk,
 } from './diskSync.js';
+import {
+  resolveUserContext,
+  assertConversationOwnership,
+  listConversations,
+  createConversation,
+  getConversationById,
+  updateConversation,
+  deleteConversation,
+  listMessages,
+  createMessage,
+  updateMessage,
+  deleteMessage,
+  associateConversationTopic,
+  searchVaultKnowledgeFts,
+} from './chatService.js';
+import {
+  generateUnifiedAIMarkdown,
+  validateAndNormalizeMarkdown,
+  TASK_PROMPTS,
+} from './aiMarkdownPipeline.js';
 
 dotenv.config();
 
@@ -32,36 +52,49 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
-// Initialize DB, Seed Data, and Disk Folders
+function sendRouteError(res, err) {
+  const status = err?.status && Number.isInteger(err.status) ? err.status : 500;
+  res.status(status).json({
+    error: err?.message || 'Internal server error',
+    code: err?.code || 'INTERNAL_ERROR',
+  });
+}
+
+// Initialize DB, Seed Data, FTS5 Index, and Disk Folders
 await initDb();
 await seedDatabase();
+await rebuildVaultFts();
 initDiskFolders();
 await syncAllFilesToDisk();
 
-// 1. GET /api/files - List all files with verified companion metadata
+// 1. GET /api/files - List all files with verified companion metadata (User-scoped)
 app.get('/api/files', async (req, res) => {
   try {
+    const { userId } = resolveUserContext(req);
     const files = await dbAll(
-      `SELECT f.id, f.title, f.path, f.note_type, 
+      `SELECT f.id, f.title, f.path, f.note_type, f.user_id, f.topic_id, f.source_type,
               CASE WHEN rf.id IS NOT NULL THEN f.raw_file_id ELSE NULL END as raw_file_id, 
               CASE WHEN ff.id IS NOT NULL THEN f.formal_file_id ELSE NULL END as formal_file_id, 
               f.created_at, f.updated_at 
        FROM files f
-       LEFT JOIN files ff ON (f.formal_file_id = ff.id AND (ff.note_type = 'formal' OR ff.path LIKE 'process/%'))
-       LEFT JOIN files rf ON (f.raw_file_id = rf.id)
-       ORDER BY f.title ASC`
+       LEFT JOIN files ff ON (f.formal_file_id = ff.id AND ff.user_id = f.user_id AND (ff.note_type = 'formal' OR ff.path LIKE 'process/%'))
+       LEFT JOIN files rf ON (f.raw_file_id = rf.id AND rf.user_id = f.user_id)
+       WHERE f.user_id = ?
+       ORDER BY f.title ASC`,
+      [userId]
     );
     res.json(files);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendRouteError(res, err);
   }
 });
 
 // 2. POST /api/files - Create a file (defaults to raw folder unless formal)
 app.post('/api/files', async (req, res) => {
   try {
+    const { userId } = resolveUserContext(req);
     const { title, content, path: filePath, note_type = 'raw', raw_file_id = null } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
@@ -69,38 +102,43 @@ app.post('/api/files', async (req, res) => {
 
     const cleanTitle = title.trim();
     const folder = note_type === 'formal' ? 'process' : 'raw';
-    let finalPath = filePath || `${folder}/${cleanTitle}.md`;
+    const pathPrefix = userId === 'default_user' ? folder : `${folder}/${userId}`;
+    let finalPath = filePath || `${pathPrefix}/${cleanTitle}.md`;
     const finalContent = content || '';
     const now = new Date().toISOString();
 
     // Check collision for path
     let counter = 1;
     while (await dbGet(`SELECT id FROM files WHERE path = ?`, [finalPath])) {
-      finalPath = `${folder}/${cleanTitle} ${counter}.md`;
+      finalPath = `${pathPrefix}/${cleanTitle} ${counter}.md`;
       counter++;
     }
 
     const result = await dbRun(
-      `INSERT INTO files (title, path, content, note_type, raw_file_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [cleanTitle, finalPath, finalContent, note_type, raw_file_id, now, now]
+      `INSERT INTO files (title, path, content, note_type, raw_file_id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [cleanTitle, finalPath, finalContent, note_type, raw_file_id, userId, now, now]
     );
 
     const fileId = result.lastID;
     await syncFileLinks(fileId, finalContent);
+    await syncFileToFts(fileId);
 
-    const createdFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [fileId]);
-    syncFileToDisk(createdFile);
+    const createdFile = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [fileId, userId]);
+    if (userId === 'default_user') {
+      syncFileToDisk(createdFile);
+    }
 
     res.status(201).json(createdFile);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendRouteError(res, err);
   }
 });
 
 // 3. GET /api/files/:id - Get single file with companion note details
 app.get('/api/files/:id', async (req, res) => {
   try {
-    const file = await dbGet(`SELECT * FROM files WHERE id = ?`, [req.params.id]);
+    const { userId } = resolveUserContext(req);
+    const file = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [req.params.id, userId]);
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -112,92 +150,108 @@ app.get('/api/files/:id', async (req, res) => {
     // Retrieve companion note metadata
     let companionNote = null;
     if (file.formal_file_id) {
-      companionNote = await dbGet(`SELECT id, title, path, updated_at FROM files WHERE id = ? AND (note_type = 'formal' OR path LIKE 'process/%')`, [file.formal_file_id]);
+      companionNote = await dbGet(
+        `SELECT id, title, path, updated_at FROM files WHERE id = ? AND user_id = ? AND (note_type = 'formal' OR path LIKE 'process/%')`,
+        [file.formal_file_id, userId]
+      );
       if (!companionNote) {
         // Target note was deleted; self-heal pointer in database
-        await dbRun(`UPDATE files SET formal_file_id = NULL WHERE id = ?`, [file.id]);
+        await dbRun(`UPDATE files SET formal_file_id = NULL WHERE id = ? AND user_id = ?`, [file.id, userId]);
         file.formal_file_id = null;
       }
     } else if (file.raw_file_id) {
-      companionNote = await dbGet(`SELECT id, title, path, updated_at FROM files WHERE id = ?`, [file.raw_file_id]);
+      companionNote = await dbGet(
+        `SELECT id, title, path, updated_at FROM files WHERE id = ? AND user_id = ?`,
+        [file.raw_file_id, userId]
+      );
       if (!companionNote) {
         // Target raw note was deleted; self-heal pointer in database
-        await dbRun(`UPDATE files SET raw_file_id = NULL WHERE id = ?`, [file.id]);
+        await dbRun(`UPDATE files SET raw_file_id = NULL WHERE id = ? AND user_id = ?`, [file.id, userId]);
         file.raw_file_id = null;
       }
     } else if (file.note_type !== 'formal' && !file.path.startsWith('process/')) {
       // Fallback check if formal note exists by raw_file_id match or title suffix
       const potential = await dbGet(
-        `SELECT id, title, path, updated_at FROM files WHERE (raw_file_id = ? OR title = ?) AND (note_type = 'formal' OR path LIKE 'process/%') LIMIT 1`,
-        [file.id, `${file.title} (Formal)`]
+        `SELECT id, title, path, updated_at FROM files WHERE user_id = ? AND (raw_file_id = ? OR title = ?) AND (note_type = 'formal' OR path LIKE 'process/%') LIMIT 1`,
+        [userId, file.id, `${file.title} (Formal)`]
       );
       if (potential) {
         companionNote = potential;
         // Self-heal link in db
-        await dbRun(`UPDATE files SET formal_file_id = ? WHERE id = ?`, [potential.id, file.id]);
-        await dbRun(`UPDATE files SET raw_file_id = ?, note_type = 'formal' WHERE id = ?`, [file.id, potential.id]);
+        await dbRun(`UPDATE files SET formal_file_id = ? WHERE id = ? AND user_id = ?`, [potential.id, file.id, userId]);
+        await dbRun(`UPDATE files SET raw_file_id = ?, note_type = 'formal' WHERE id = ? AND user_id = ?`, [file.id, potential.id, userId]);
       }
     }
 
     res.json({ ...file, links, companionNote });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendRouteError(res, err);
   }
 });
 
 // 4. PUT /api/files/:id - Update file content and auto-sync links
 app.put('/api/files/:id', async (req, res) => {
   try {
+    const { userId } = resolveUserContext(req);
     const fileId = req.params.id;
     const { title, content } = req.body;
-    const existing = await dbGet(`SELECT * FROM files WHERE id = ?`, [fileId]);
+    const existing = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [fileId, userId]);
     if (!existing) {
       return res.status(404).json({ error: 'File not found' });
     }
 
     const newTitle = title !== undefined ? title.trim() : existing.title;
     const folder = existing.note_type === 'formal' ? 'process' : 'raw';
-    const newPath = `${folder}/${newTitle}.md`;
+    const pathPrefix = userId === 'default_user' ? folder : `${folder}/${userId}`;
+    const newPath = `${pathPrefix}/${newTitle}.md`;
     const newContent = content !== undefined ? content : existing.content;
     const now = new Date().toISOString();
 
     await dbRun(
-      `UPDATE files SET title = ?, path = ?, content = ?, updated_at = ? WHERE id = ?`,
-      [newTitle, newPath, newContent, now, fileId]
+      `UPDATE files SET title = ?, path = ?, content = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
+      [newTitle, newPath, newContent, now, fileId, userId]
     );
 
     await syncFileLinks(fileId, newContent);
+    await syncFileToFts(fileId);
 
-    const updatedFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [fileId]);
+    const updatedFile = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [fileId, userId]);
 
     // If title changed, clean up previous file from disk
-    if (newTitle !== existing.title) {
-      deleteFileFromDisk(existing);
+    if (userId === 'default_user') {
+      if (newTitle !== existing.title) {
+        deleteFileFromDisk(existing);
+      }
+      syncFileToDisk(updatedFile);
     }
-    syncFileToDisk(updatedFile);
 
     res.json(updatedFile);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendRouteError(res, err);
   }
 });
 
 // 5. DELETE /api/files/:id - Delete a file and decouple all relations
 app.delete('/api/files/:id', async (req, res) => {
   try {
+    const { userId } = resolveUserContext(req);
     const fileId = parseInt(req.params.id, 10);
-    const existing = await dbGet(`SELECT * FROM files WHERE id = ?`, [fileId]);
-    if (existing) {
+    const existing = await dbGet(`SELECT * FROM files WHERE id = ? AND user_id = ?`, [fileId, userId]);
+    if (!existing) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    if (userId === 'default_user') {
       deleteFileFromDisk(existing);
     }
     // Clean up relation pointers across vault notes
-    await dbRun(`UPDATE files SET formal_file_id = NULL WHERE formal_file_id = ?`, [fileId]);
-    await dbRun(`UPDATE files SET raw_file_id = NULL WHERE raw_file_id = ?`, [fileId]);
+    await dbRun(`UPDATE files SET formal_file_id = NULL WHERE formal_file_id = ? AND user_id = ?`, [fileId, userId]);
+    await dbRun(`UPDATE files SET raw_file_id = NULL WHERE raw_file_id = ? AND user_id = ?`, [fileId, userId]);
     await dbRun(`DELETE FROM links WHERE source_file_id = ? OR target_file_id = ?`, [fileId, fileId]);
-    await dbRun(`DELETE FROM files WHERE id = ?`, [fileId]);
+    await removeFileFromFts(fileId);
+    await dbRun(`DELETE FROM files WHERE id = ? AND user_id = ?`, [fileId, userId]);
     res.json({ success: true, message: 'File deleted' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendRouteError(res, err);
   }
 });
 
@@ -256,6 +310,7 @@ app.get('/api/files/:id/graph', async (req, res) => {
     nodesMap.set(centerFile.id, {
       id: centerFile.id,
       name: centerFile.title,
+      title: centerFile.title,
       path: centerFile.path,
       note_type: centerFile.note_type || 'raw',
       isCenter: true,
@@ -273,16 +328,20 @@ app.get('/api/files/:id/graph', async (req, res) => {
           nodesMap.set(targetNodeId, {
             id: targetNodeId,
             name: link.target_title,
+            title: link.target_title,
             isGhost: true,
+            isUnresolved: true,
             note_type: 'ghost',
             val: 3,
           });
         }
       } else {
         if (!nodesMap.has(targetNodeId)) {
+          const resolvedTitle = link.target_title_actual || link.target_title;
           nodesMap.set(targetNodeId, {
             id: targetNodeId,
-            name: link.target_title_actual || link.target_title,
+            name: resolvedTitle,
+            title: resolvedTitle,
             note_type: 'raw',
             val: 5,
           });
@@ -307,6 +366,7 @@ app.get('/api/files/:id/graph', async (req, res) => {
         nodesMap.set(sourceNodeId, {
           id: sourceNodeId,
           name: link.source_file_title,
+          title: link.source_file_title,
           note_type: 'raw',
           val: 5,
         });
@@ -346,6 +406,7 @@ app.get('/api/graph', async (req, res) => {
       nodesMap.set(file.id, {
         id: file.id,
         name: file.title,
+        title: file.title,
         path: file.path,
         note_type: file.note_type || 'raw',
         raw_file_id: file.raw_file_id,
@@ -368,7 +429,9 @@ app.get('/api/graph', async (req, res) => {
           nodesMap.set(ghostId, {
             id: ghostId,
             name: link.target_title,
+            title: link.target_title,
             isGhost: true,
+            isUnresolved: true,
             note_type: 'ghost',
             val: 3,
           });
@@ -520,14 +583,15 @@ app.post('/api/files/:id/synthesize/preview', async (req, res) => {
       aiConfig,
     });
 
-    // Render structured JSON into textbook-grade Markdown
-    const renderedMarkdown = renderFormalMarkdown({
+    // Render structured JSON into textbook-grade Markdown and validate through pipeline
+    const rawFormalMarkdown = renderFormalMarkdown({
       rawTitle: rawFile.title,
       structuredData: result.structuredOutput,
       model: result.model,
       promptVersion: result.promptVersion,
       provider: result.provider,
     });
+    const renderedMarkdown = validateAndNormalizeMarkdown(rawFormalMarkdown).content;
 
     // Check if active formal companion note already exists in vault
     const existingFormalNote = await dbGet(
@@ -654,6 +718,7 @@ app.post('/api/files/:id/synthesize/save', async (req, res) => {
 
     // Graph Synchronization with exponential backoff retry
     const graphSyncResult = await syncGraphWithRetry(savedFormalFileId, renderedMarkdown, 3);
+    await syncFileToFts(savedFormalFileId);
     const savedFormalFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [savedFormalFileId]);
 
     // Sync to disk process folder
@@ -716,13 +781,14 @@ app.post('/api/files/:id/synthesize/auto', async (req, res) => {
       aiConfig,
     });
 
-    const renderedMarkdown = renderFormalMarkdown({
+    const rawFormalMarkdown = renderFormalMarkdown({
       rawTitle: rawFile.title,
       structuredData: result.structuredOutput,
       model: result.model,
       promptVersion: result.promptVersion,
       provider: result.provider,
     });
+    const renderedMarkdown = validateAndNormalizeMarkdown(rawFormalMarkdown).content;
 
     const formalTitle = (result.structuredOutput.formalTitle || `${rawFile.title} (Formal)`).trim();
     const formalPath = `process/${formalTitle}.md`;
@@ -771,6 +837,7 @@ app.post('/api/files/:id/synthesize/auto', async (req, res) => {
     );
 
     const graphSyncResult = await syncGraphWithRetry(savedFormalFileId, renderedMarkdown, 3);
+    await syncFileToFts(savedFormalFileId);
     const savedFormalFile = await dbGet(`SELECT * FROM files WHERE id = ?`, [savedFormalFileId]);
 
     // Sync to disk process folder
@@ -936,6 +1003,326 @@ app.post('/api/ai/test', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================================
+// 18. CHATTYFI CONVERSATIONAL KNOWLEDGE CAPTURE — STAGE 2 CRUD & FTS5 APIs
+// ============================================================================
+
+// GET /api/chattyfi/conversations - List user's conversations with search & topic metadata
+app.get('/api/chattyfi/conversations', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const { q, search, includeArchived, limit, offset } = req.query;
+    const conversations = await listConversations(userId, {
+      search: q || search || '',
+      includeArchived: includeArchived === 'true' || includeArchived === '1',
+      limit,
+      offset,
+    });
+    res.json(conversations);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/chattyfi/conversations - Create a new persistent conversation
+app.post('/api/chattyfi/conversations', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const { title, activeTopicId } = req.body || {};
+    const created = await createConversation(userId, { title, activeTopicId });
+    res.status(201).json(created);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// GET /api/chattyfi/conversations/:id - Retrieve conversation details, messages, topics & attachments
+app.get('/api/chattyfi/conversations/:id', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const conversation = await getConversationById(userId, req.params.id);
+    res.json(conversation);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// PATCH / PUT /api/chattyfi/conversations/:id - Rename conversation or update archive/topic state
+const handleUpdateConversation = async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const { title, isArchived, is_archived, activeTopicId, active_topic_id } = req.body || {};
+    const updated = await updateConversation(userId, req.params.id, {
+      title,
+      isArchived: isArchived !== undefined ? isArchived : is_archived,
+      activeTopicId: activeTopicId !== undefined ? activeTopicId : active_topic_id,
+    });
+    res.json(updated);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+};
+app.patch('/api/chattyfi/conversations/:id', handleUpdateConversation);
+app.put('/api/chattyfi/conversations/:id', handleUpdateConversation);
+
+// DELETE /api/chattyfi/conversations/:id - Delete conversation (preserves generated vault notes)
+app.delete('/api/chattyfi/conversations/:id', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const result = await deleteConversation(userId, req.params.id);
+    res.json(result);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// GET /api/chattyfi/conversations/:id/messages - List ordered messages in a conversation
+app.get('/api/chattyfi/conversations/:id/messages', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const messages = await listMessages(userId, req.params.id);
+    res.json(messages);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/chattyfi/conversations/:id/messages - Persist a new message in a conversation
+app.post('/api/chattyfi/conversations/:id/messages', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const {
+      role = 'user',
+      content = '',
+      attachmentIds,
+      attachment_ids,
+      generationStatus,
+      generation_status,
+      processingStatus,
+      processing_status,
+      processingMetadata,
+      processing_metadata,
+      topicId,
+      topic_id,
+    } = req.body || {};
+
+    const createdMsg = await createMessage(userId, req.params.id, {
+      role,
+      content,
+      attachmentIds: attachmentIds || attachment_ids || [],
+      generationStatus: generationStatus || generation_status || 'completed',
+      processingStatus: processingStatus || processing_status || 'pending',
+      processingMetadata: processingMetadata || processing_metadata || {},
+      topicId: topicId !== undefined ? topicId : topic_id,
+    });
+
+    res.status(201).json(createdMsg);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// PATCH / PUT /api/chattyfi/conversations/:id/messages/:messageId - Update assistant message or status
+const handleUpdateMessage = async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const {
+      content,
+      generationStatus,
+      generation_status,
+      processingStatus,
+      processing_status,
+      processingMetadata,
+      processing_metadata,
+      topicId,
+      topic_id,
+    } = req.body || {};
+
+    const updatedMsg = await updateMessage(userId, req.params.id, req.params.messageId, {
+      content,
+      generationStatus: generationStatus !== undefined ? generationStatus : generation_status,
+      processingStatus: processingStatus !== undefined ? processingStatus : processing_status,
+      processingMetadata: processingMetadata !== undefined ? processingMetadata : processing_metadata,
+      topicId: topicId !== undefined ? topicId : topic_id,
+    });
+
+    res.json(updatedMsg);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+};
+app.patch('/api/chattyfi/conversations/:id/messages/:messageId', handleUpdateMessage);
+app.put('/api/chattyfi/conversations/:id/messages/:messageId', handleUpdateMessage);
+
+// DELETE /api/chattyfi/conversations/:id/messages/:messageId - Delete a message
+app.delete('/api/chattyfi/conversations/:id/messages/:messageId', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const result = await deleteMessage(userId, req.params.id, req.params.messageId);
+    res.json(result);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/chattyfi/conversations/:id/topics - Associate or create a topic with 3-zone confidence safeguards
+app.post('/api/chattyfi/conversations/:id/topics', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const {
+      topicId,
+      topic_id,
+      topicName,
+      topic_name,
+      summary,
+      keywords,
+      messageId,
+      message_id,
+      matchConfidence,
+      match_confidence,
+      isManualOverride,
+    } = req.body || {};
+
+    const result = await associateConversationTopic(userId, req.params.id, {
+      topicId: topicId !== undefined ? topicId : topic_id,
+      topicName: topicName || topic_name || '',
+      summary,
+      keywords,
+      messageId: messageId || message_id || null,
+      matchConfidence: matchConfidence !== undefined ? matchConfidence : match_confidence,
+      isManualOverride: Boolean(isManualOverride),
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// GET /api/chattyfi/search - SQLite FTS5 BM25 search with 3-zone confidence scoring (User-scoped)
+app.get('/api/chattyfi/search', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const { q, query, limit } = req.query;
+    const results = await searchVaultKnowledgeFts(userId, q || query || '', limit);
+    res.json({
+      query: q || query || '',
+      count: results.length,
+      results,
+    });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// ============================================================================
+// STEP 8: UNIFIED AI MARKDOWN GENERATION PIPELINE ENDPOINTS
+// ============================================================================
+
+// POST /api/ai/generate - Generic Unified AI Markdown generation endpoint
+app.post('/api/ai/generate', async (req, res) => {
+  try {
+    const { userId } = resolveUserContext(req);
+    const { prompt, task, conversationHistory, vaultTitles } = req.body || {};
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    const aiConfig = await resolveAIConfig(req);
+
+    // If vaultTitles not provided, fetch from DB scoped to the active user
+    let targetVaultTitles = vaultTitles;
+    if (!targetVaultTitles || !Array.isArray(targetVaultTitles)) {
+      const notes = await dbAll(`SELECT title FROM files WHERE user_id = ? LIMIT 60`, [userId]);
+      targetVaultTitles = notes.map((n) => n.title);
+    }
+
+    const result = await generateUnifiedAIMarkdown({
+      task: task || 'chattyfi_conversation',
+      prompt,
+      conversationHistory: conversationHistory || [],
+      vaultTitles: targetVaultTitles,
+      aiConfig,
+    });
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (err) {
+    sendRouteError(res, err);
+  }
+});
+
+// POST /api/chattyfi/conversations/:id/reply - Unified AI ChattyFi assistant response generator
+app.post('/api/chattyfi/conversations/:id/reply', async (req, res) => {
+  let isClientClosed = false;
+  req.on('close', () => {
+    if (!res.writableEnded) {
+      isClientClosed = true;
+    }
+  });
+
+  try {
+    const { userId } = resolveUserContext(req);
+    const conversationId = req.params.id;
+    const { prompt, task } = req.body || {};
+
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    // Verify conversation ownership
+    await assertConversationOwnership(userId, conversationId);
+
+    // Fetch ordered conversation messages for context
+    const existingMessages = await listMessages(userId, conversationId);
+
+    // Fetch vault titles for contextual cross-linking
+    const notes = await dbAll(`SELECT title FROM files WHERE user_id = ? LIMIT 60`, [userId]);
+    const vaultTitles = notes.map((n) => n.title);
+
+    const aiConfig = await resolveAIConfig(req);
+
+    const result = await generateUnifiedAIMarkdown({
+      task: task || 'chattyfi_conversation',
+      prompt,
+      conversationHistory: existingMessages,
+      vaultTitles,
+      aiConfig,
+    });
+
+    // If client aborted or closed connection before completion, do NOT persist completed assistant message
+    if (isClientClosed || req.destroyed) {
+      return;
+    }
+
+    // Persist assistant message in conversation with full metadata
+    const assistantMessage = await createMessage(userId, conversationId, {
+      role: 'assistant',
+      content: result.content,
+      generationStatus: 'completed',
+      processingStatus: 'pending',
+      processingMetadata: {
+        provider: result.provider,
+        model: result.model,
+        task: result.task,
+        repairsApplied: result.repairsApplied || [],
+        isValid: result.isValid,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: assistantMessage,
+      generation: result,
+    });
+  } catch (err) {
+    if (isClientClosed) return;
+    sendRouteError(res, err);
   }
 });
 

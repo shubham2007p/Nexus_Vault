@@ -23,10 +23,15 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "groq-sdk": "^1.6.0",
+    "katex": "^0.16.47",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-force-graph-2d": "^1.26.0",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

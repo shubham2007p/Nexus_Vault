@@ -83,7 +83,8 @@ export default {
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
         serif: ['Newsreader', 'Georgia', 'Cambria', 'serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', 'Menlo', 'Consolas', 'monospace'],
+        code: ['"JetBrains Mono"', '"Fira Code"', 'Consolas', 'monospace'],
       }
     },
   },

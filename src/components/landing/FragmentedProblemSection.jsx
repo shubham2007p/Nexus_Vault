@@ -42,7 +42,7 @@ export default function FragmentedProblemSection() {
               }`}
             >
               <Link2 className="w-3.5 h-3.5" />
-              <span>2. Connected Lineage (With Chattifying)</span>
+              <span>2. Connected Lineage (With Nexus Vault)</span>
             </button>
           </div>
         </div>
@@ -235,7 +235,7 @@ export default function FragmentedProblemSection() {
               </div>
               <p className="text-xs text-[#66605A] leading-relaxed mt-0.5">
                 {isConnected
-                  ? 'Chattifying lets you write fast in the moment, then helps you formalize messy notes into textbook-grade companions and discover how Calculus, Backpropagation, and Systems Engineering fit together.'
+                  ? 'Nexus Vault lets you write fast in the moment, then helps you formalize messy notes into textbook-grade companions and discover how Calculus, Backpropagation, and Systems Engineering fit together.'
                   : 'These three notes form a single continuous chain of reasoning—yet because they were written weeks apart in different classes, they sit disconnected until you intentionally synthesize and link them.'}
               </p>
             </div>
@@ -245,7 +245,7 @@ export default function FragmentedProblemSection() {
             onClick={() => setIsConnected(!isConnected)}
             className="px-4 py-2 text-xs font-semibold rounded-md border border-[#D6D0C5] bg-[#FAF8F5] hover:bg-[#F4EFEA] text-[#1C1917] shrink-0 transition-colors cursor-pointer"
           >
-            {isConnected ? 'Show Isolated View' : 'Connect with Chattifying →'}
+            {isConnected ? 'Show Isolated View' : 'Connect with Nexus Vault →'}
           </button>
         </div>
       </div>

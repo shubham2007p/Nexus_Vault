@@ -8,6 +8,8 @@ import LandingPage from './components/landing/LandingPage';
 import AIReviewModal from './components/modals/AIReviewModal';
 import NoteSynthesisModal from './components/modals/NoteSynthesisModal';
 import AIConfigModal from './components/modals/AIConfigModal';
+import ConversationSidebar from './components/chattyfi/ConversationSidebar';
+import ChattyFiView, { buildStage3StructuredReply } from './components/chattyfi/ChattyFiView';
 import { Sparkles, AlertCircle } from 'lucide-react';
 
 class ErrorBoundary extends Component {
@@ -50,9 +52,31 @@ export default function App() {
     return (hash === '#/landing' || path === '/landing') ? 'landing' : 'app';
   });
 
+  // Workspace mode: 'chattyfi' | 'notes'
+  const [workspaceMode, setWorkspaceMode] = useState(() => {
+    const hash = window.location.hash;
+    if (hash === '#/notes') return 'notes';
+    if (hash === '#/chattyfi') return 'chattyfi';
+    try {
+      return localStorage.getItem('nexus_workspace_mode') || 'chattyfi';
+    } catch (e) {
+      return 'chattyfi';
+    }
+  });
+
   const [files, setFiles] = useState([]);
   const [activeFileId, setActiveFileId] = useState(null);
   const [activeFile, setActiveFile] = useState(null);
+
+  // ChattyFi Conversation State
+  const [conversations, setConversations] = useState([]);
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [conversationMessages, setConversationMessages] = useState([]);
+  const [conversationSearchQuery, setConversationSearchQuery] = useState('');
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isGeneratingReply, setIsGeneratingReply] = useState(false);
+  const replyAbortRef = React.useRef({ aborted: false, pendingPrompt: null });
   const [graphData, setGraphData] = useState({ nodes: [], edges: [], links: [] });
   const [globalGraphData, setGlobalGraphData] = useState({ nodes: [], edges: [], links: [] });
   const [backlinks, setBacklinks] = useState([]);
@@ -65,7 +89,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('nexus_ai_config');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return {
       activeProvider: 'groq',
       activeModel: 'openai/gpt-oss-120b',
@@ -106,7 +130,7 @@ export default function App() {
     }
     try {
       localStorage.setItem('nexus_theme', theme);
-    } catch (e) {}
+    } catch (e) { }
   }, [theme]);
 
   const toggleTheme = () => {
@@ -117,11 +141,25 @@ export default function App() {
     const handleHashChange = () => {
       const hash = window.location.hash;
       const path = window.location.pathname;
-      setRoute((hash === '#/landing' || path === '/landing') ? 'landing' : 'app');
+      if (hash === '#/landing' || path === '/landing') {
+        setRoute('landing');
+      } else {
+        setRoute('app');
+        if (hash === '#/notes') setWorkspaceMode('notes');
+        if (hash === '#/chattyfi') setWorkspaceMode('chattyfi');
+      }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  const handleSwitchWorkspaceMode = (nextMode) => {
+    const resolved = nextMode === 'notes' ? 'notes' : 'chattyfi';
+    setWorkspaceMode(resolved);
+    try {
+      localStorage.setItem('nexus_workspace_mode', resolved);
+    } catch (e) { }
+  };
 
   const handleLaunchApp = () => {
     window.location.hash = '#/app';
@@ -170,7 +208,7 @@ export default function App() {
     setAIConfig(newConfig);
     try {
       localStorage.setItem('nexus_ai_config', JSON.stringify(newConfig));
-    } catch (e) {}
+    } catch (e) { }
     showToast(`Active AI Model: ${newConfig.activeProvider?.toUpperCase()} (${newConfig.activeModel || 'default'})`, 'success');
   };
 
@@ -210,7 +248,8 @@ export default function App() {
 
   // Fetch active file data, local graph, and backlinks
   const fetchActiveFileData = async (id) => {
-    if (!id) return;
+    const numericId = typeof id === 'number' ? id : Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) return;
     try {
       const [fileRes, graphRes, backlinksRes] = await Promise.all([
         fetch(`/api/files/${id}`),
@@ -237,10 +276,68 @@ export default function App() {
     }
   };
 
+  // Fetch ChattyFi conversations list
+  const fetchConversations = async (query = conversationSearchQuery) => {
+    try {
+      setIsLoadingConversations(true);
+      const qParam = query ? `?q=${encodeURIComponent(query)}` : '';
+      const res = await fetch(`/api/chattyfi/conversations${qParam}`);
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        setConversations(list);
+        return list;
+      }
+      return [];
+    } catch (err) {
+      console.error('Error fetching conversations:', err);
+      return [];
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  // Fetch single conversation with full messages and attachments
+  const fetchConversationDetail = async (id) => {
+    if (!id) {
+      setActiveConversation(null);
+      setConversationMessages([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/chattyfi/conversations/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveConversation(data);
+        setConversationMessages(Array.isArray(data.messages) ? data.messages : []);
+      }
+    } catch (err) {
+      console.error('Error fetching conversation detail:', err);
+    }
+  };
+
   useEffect(() => {
     fetchFiles();
     fetchGlobalGraph();
+    fetchConversations('').then((list) => {
+      if (list.length > 0 && !activeConversationId) {
+        setActiveConversationId(list[0].id);
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    fetchConversations(conversationSearchQuery);
+  }, [conversationSearchQuery]);
+
+  useEffect(() => {
+    if (activeConversationId) {
+      fetchConversationDetail(activeConversationId);
+    } else {
+      setActiveConversation(null);
+      setConversationMessages([]);
+    }
+  }, [activeConversationId]);
 
   useEffect(() => {
     if (activeFileId) {
@@ -267,7 +364,404 @@ export default function App() {
   };
 
   const handleSelectFile = (id) => {
+    const numericId = typeof id === 'number' ? id : Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) return;
+    setActiveFileId(numericId);
+  };
+
+  const handleOpenNoteById = (id) => {
+    if (!id) return;
     setActiveFileId(id);
+    handleSwitchWorkspaceMode('notes');
+  };
+
+  const handleOpenNoteByTitle = (title) => {
+    if (!title) return;
+    const normalized = title.trim().toLowerCase();
+    const safeList = Array.isArray(files) ? files : [];
+    const match = safeList.find((f) => (f.title || '').trim().toLowerCase() === normalized);
+    if (match) {
+      setActiveFileId(match.id);
+      handleSwitchWorkspaceMode('notes');
+      showToast(`Opened note "${match.title}"`, 'info');
+    } else {
+      showToast(`Note "${title}" not yet created in vault`, 'info');
+    }
+  };
+
+  // ChattyFi Conversation CRUD Handlers
+  const handleCreateConversation = async (initialTitle = 'Untitled Conversation') => {
+    try {
+      const res = await fetch('/api/chattyfi/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: initialTitle }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        await fetchConversations(conversationSearchQuery);
+        setActiveConversationId(created.id);
+        setActiveConversation(created);
+        setConversationMessages([]);
+        handleSwitchWorkspaceMode('chattyfi');
+        return created;
+      }
+    } catch (err) {
+      showToast('Failed to create conversation', 'error');
+    }
+    return null;
+  };
+
+  const handleRenameConversation = async (id, newTitle) => {
+    try {
+      const res = await fetch(`/api/chattyfi/conversations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        await fetchConversations(conversationSearchQuery);
+        if (String(activeConversationId) === String(id)) {
+          setActiveConversation((prev) => (prev ? { ...prev, title: updated.title } : updated));
+        }
+        showToast(`Renamed conversation to "${newTitle}"`, 'success');
+      }
+    } catch (err) {
+      showToast('Failed to rename conversation', 'error');
+    }
+  };
+
+  const handleTogglePinConversation = async (id, pinned) => {
+    try {
+      const res = await fetch(`/api/chattyfi/conversations/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinned }),
+      });
+      if (res.ok) {
+        await fetchConversations(conversationSearchQuery);
+      }
+    } catch (err) {
+      showToast('Failed to update conversation pin', 'error');
+    }
+  };
+
+  const handleDeleteConversation = async (id) => {
+    try {
+      const res = await fetch(`/api/chattyfi/conversations/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('Conversation deleted', 'info');
+        const updatedList = await fetchConversations(conversationSearchQuery);
+        if (String(activeConversationId) === String(id)) {
+          setActiveConversationId(updatedList.length > 0 ? updatedList[0].id : null);
+        }
+      }
+    } catch (err) {
+      showToast('Failed to delete conversation', 'error');
+    }
+  };
+
+  const handleSendChatMessage = async (content, stagedAttachments = []) => {
+    let targetConvId = activeConversationId;
+    let isBrandNew = false;
+
+    if (!targetConvId) {
+      const autoTitle = content.slice(0, 56).replace(/\n+/g, ' ').trim() || 'New Study Session';
+      const created = await handleCreateConversation(autoTitle);
+      if (!created) return;
+      targetConvId = created.id;
+      isBrandNew = true;
+    }
+
+    try {
+      // 1. Persist immutable raw user message & staged attachments
+      const userRes = await fetch(`/api/chattyfi/conversations/${targetConvId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'user',
+          content,
+          generationStatus: 'completed',
+          processingStatus: 'pending',
+          processingMetadata: {
+            attachments: stagedAttachments.map((att) => ({
+              file_name: att.file_name,
+              file_type: att.file_type,
+              mime_type: att.mime_type,
+              file_size: att.file_size,
+              storage_path: att.storage_path,
+              preview_url: att.preview_url || '',
+              extracted_text: att.extracted_text || null,
+            })),
+          },
+        }),
+      });
+
+      if (!userRes.ok) {
+        showToast('Failed to save message', 'error');
+        return;
+      }
+
+      // Auto-title conversation if it was still 'Untitled Conversation'
+      if (
+        !isBrandNew &&
+        activeConversation &&
+        (activeConversation.title === 'Untitled Conversation' ||
+          activeConversation.title === 'New Conversation')
+      ) {
+        const derivedTitle = content.slice(0, 56).replace(/\n+/g, ' ').trim();
+        if (derivedTitle) {
+          await fetch(`/api/chattyfi/conversations/${targetConvId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: derivedTitle }),
+          });
+        }
+      }
+
+      await fetchConversationDetail(targetConvId);
+      await fetchConversations(conversationSearchQuery);
+
+      // 2. Unified AI reply generation via backend pipeline
+      setIsGeneratingReply(true);
+      const abortCtrl = new AbortController();
+      replyAbortRef.current = { aborted: false, pendingPrompt: content, convId: targetConvId, controller: abortCtrl };
+
+      const activeProvider = aiConfig?.activeProvider || 'groq';
+      const activeModel =
+        aiConfig?.models?.[activeProvider] || aiConfig?.activeModel || 'openai/gpt-oss-120b';
+
+      try {
+        const replyRes = await fetch(`/api/chattyfi/conversations/${targetConvId}/reply`, {
+          method: 'POST',
+          signal: abortCtrl.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ai-provider': activeProvider,
+            'x-ai-key': aiConfig?.keys?.[activeProvider] || '',
+            'x-ai-model': activeModel,
+            'x-ai-base-url': aiConfig?.baseUrls?.[activeProvider] || '',
+          },
+          body: JSON.stringify({ prompt: content }),
+        });
+
+        if (replyAbortRef.current.aborted) {
+          return;
+        }
+
+        if (replyRes.ok) {
+          await fetchConversationDetail(targetConvId);
+          await fetchConversations(conversationSearchQuery);
+          return;
+        }
+      } catch (backendReplyErr) {
+        if (backendReplyErr.name === 'AbortError' || replyAbortRef.current.aborted) {
+          return;
+        }
+        console.warn('Backend unified reply failed, using contract fallback:', backendReplyErr);
+      }
+
+      if (replyAbortRef.current.aborted) {
+        return;
+      }
+
+      const assistantMarkdown = buildStage3StructuredReply(content, files);
+
+      await fetch(`/api/chattyfi/conversations/${targetConvId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'assistant',
+          content: assistantMarkdown,
+          generationStatus: 'completed',
+          processingStatus: 'pending',
+          processingMetadata: {
+            provider: activeProvider,
+            model: activeModel,
+          },
+        }),
+      });
+
+      await fetchConversationDetail(targetConvId);
+      await fetchConversations(conversationSearchQuery);
+    } catch (err) {
+      console.error('Error in chat turn:', err);
+      showToast('Failed to process message', 'error');
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  };
+
+  const handleStopChatGeneration = async () => {
+    replyAbortRef.current.aborted = true;
+    if (replyAbortRef.current.controller) {
+      replyAbortRef.current.controller.abort();
+    }
+    const convId = replyAbortRef.current.convId || activeConversationId;
+    setIsGeneratingReply(false);
+    if (!convId) return;
+
+    try {
+      const partialReply =
+        '### Partial Derivation (Interrupted)\n\nLet $\\mathbf{z}^{(l)} = \\mathbf{W}^{(l)}\\mathbf{a}^{(l-1)} + \\mathbf{b}^{(l)}$... *(generation stopped by user)*';
+      await fetch(`/api/chattyfi/conversations/${convId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'assistant',
+          content: partialReply,
+          generationStatus: 'interrupted',
+          processingStatus: 'blocked_incomplete',
+          processingMetadata: {
+            error_message: 'Stopped by user before completion',
+          },
+        }),
+      });
+      await fetchConversationDetail(convId);
+      await fetchConversations(conversationSearchQuery);
+      showToast('Generation stopped — marked incomplete (Safeguard 5)', 'info');
+    } catch (err) {
+      console.error('Error recording interrupted message:', err);
+    }
+  };
+
+  const handleRegenerateChatMessage = async () => {
+    const userTurns = (conversationMessages || []).filter((m) => m.role === 'user');
+    const lastUserTurn = userTurns[userTurns.length - 1];
+    if (!lastUserTurn || !activeConversationId) return;
+
+    setIsGeneratingReply(true);
+    const abortCtrl = new AbortController();
+    replyAbortRef.current = { aborted: false, pendingPrompt: lastUserTurn.content, convId: activeConversationId, controller: abortCtrl };
+    try {
+      const activeProvider = aiConfig?.activeProvider || 'groq';
+      const activeModel =
+        aiConfig?.models?.[activeProvider] || aiConfig?.activeModel || 'openai/gpt-oss-120b';
+
+      try {
+        const replyRes = await fetch(`/api/chattyfi/conversations/${activeConversationId}/reply`, {
+          method: 'POST',
+          signal: abortCtrl.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ai-provider': activeProvider,
+            'x-ai-key': aiConfig?.keys?.[activeProvider] || '',
+            'x-ai-model': activeModel,
+            'x-ai-base-url': aiConfig?.baseUrls?.[activeProvider] || '',
+          },
+          body: JSON.stringify({ prompt: lastUserTurn.content }),
+        });
+
+        if (replyAbortRef.current.aborted) {
+          return;
+        }
+
+        if (replyRes.ok) {
+          await fetchConversationDetail(activeConversationId);
+          await fetchConversations(conversationSearchQuery);
+          showToast('Response regenerated', 'success');
+          return;
+        }
+      } catch (backendReplyErr) {
+        if (backendReplyErr.name === 'AbortError' || replyAbortRef.current.aborted) {
+          return;
+        }
+        console.warn('Backend regenerate reply failed, using contract fallback:', backendReplyErr);
+      }
+
+      const assistantMarkdown = buildStage3StructuredReply(lastUserTurn.content, files);
+
+      await fetch(`/api/chattyfi/conversations/${activeConversationId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'assistant',
+          content: assistantMarkdown,
+          generationStatus: 'completed',
+          processingStatus: 'pending',
+          processingMetadata: {
+            provider: activeProvider,
+            model: activeModel,
+          },
+        }),
+      });
+      await fetchConversationDetail(activeConversationId);
+      await fetchConversations(conversationSearchQuery);
+      showToast('Response regenerated', 'success');
+    } catch (err) {
+      showToast('Failed to regenerate response', 'error');
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  };
+
+  const handleLoadDemoConversation = async () => {
+    try {
+      const created = await handleCreateConversation(
+        'Backpropagation, Chain Rule & Virtual Memory Walk'
+      );
+      if (!created) return;
+
+      const userPrompt1 =
+        'Explain how backpropagation computes gradients through a multi-layer perceptron. Include the matrix chain rule in LaTeX, a clean Python implementation of a single layer pass, and connect it to [[Neural Networks | mathematically grounds | Backpropagation]].';
+
+      await fetch(`/api/chattyfi/conversations/${created.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'user',
+          content: userPrompt1,
+          generationStatus: 'completed',
+          processingStatus: 'pending',
+          processingMetadata: {
+            attachments: [
+              {
+                file_name: 'lecture_04_backprop_notes.md',
+                file_type: 'document',
+                mime_type: 'text/markdown',
+                file_size: 4820,
+                storage_path: 'uploads/lecture_04_backprop_notes.md',
+                extracted_text:
+                  '# Lecture 4: Backpropagation & Matrix Calculus\nChain rule over computational graphs.',
+              },
+            ],
+          },
+        }),
+      });
+
+      const assistantReply1 = buildStage3StructuredReply(userPrompt1, files);
+      await fetch(`/api/chattyfi/conversations/${created.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'assistant',
+          content: assistantReply1,
+          generationStatus: 'completed',
+          processingStatus: 'completed',
+          processingMetadata: {
+            provider: aiConfig?.activeProvider || 'groq',
+            model: aiConfig?.activeModel || 'openai/gpt-oss-120b',
+          },
+        }),
+      });
+
+      await fetch(`/api/chattyfi/conversations/${created.id}/topics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topicName: 'Neural Networks',
+          summary: 'Backpropagation, matrix chain rule, and gradient flow',
+          matchConfidence: 0.92,
+        }),
+      });
+
+      await fetchConversationDetail(created.id);
+      await fetchConversations(conversationSearchQuery);
+      showToast('Loaded rich study thread with Markdown, LaTeX, Code & Attachments', 'success');
+    } catch (err) {
+      showToast('Failed to load demo thread', 'error');
+    }
   };
 
   const handleCreateFile = async (title, folder = 'raw') => {
@@ -280,6 +774,7 @@ export default function App() {
       });
       if (res.ok) {
         const newFile = await res.json();
+        setActiveFile({ ...newFile, links: [], companionNote: null });
         await fetchFiles();
         await fetchGlobalGraph();
         setActiveFileId(newFile.id);
@@ -479,13 +974,12 @@ export default function App() {
       {/* Toast Notification Banner (Restrained, accessible contrast) */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 px-3.5 py-2 rounded-lg shadow-lg text-xs font-medium border flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
-            toast.type === 'success'
-              ? 'bg-[#EBF5F0] dark:bg-emerald-950/90 text-[#1F6342] dark:text-emerald-200 border-[#287D54]/30 dark:border-emerald-500/40'
-              : toast.type === 'error'
+          className={`fixed top-4 right-4 z-50 px-3.5 py-2 rounded-lg shadow-lg text-xs font-medium border flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${toast.type === 'success'
+            ? 'bg-[#EBF5F0] dark:bg-emerald-950/90 text-[#1F6342] dark:text-emerald-200 border-[#287D54]/30 dark:border-emerald-500/40'
+            : toast.type === 'error'
               ? 'bg-[#FDF2F2] dark:bg-rose-950/90 text-[#991B1B] dark:text-rose-200 border-[#D32F2F]/30 dark:border-rose-500/40'
               : 'bg-[#FEF7EC] dark:bg-amber-950/90 text-[#9A6214] dark:text-amber-200 border-[#E7A23B]/30 dark:border-amber-500/40'
-          }`}
+            }`}
         >
           {toast.type === 'error' ? (
             <AlertCircle className="w-4 h-4 text-[#D32F2F] dark:text-rose-400 shrink-0" />
@@ -505,54 +999,116 @@ export default function App() {
         />
       )}
 
-      {/* Left Pane: Vault Explorer (In-flow on desktop, slide drawer on mobile) */}
+      {/* Left Pane: Vault Explorer or ChattyFi Conversation Sidebar */}
       <div
-        className={`${
-          isSidebarOpen
-            ? 'fixed inset-y-0 left-0 z-40 w-72 md:relative md:w-64 md:z-auto md:flex shrink-0 h-full shadow-xl md:shadow-none'
-            : 'hidden'
-        }`}
+        className={`${isSidebarOpen
+          ? 'fixed inset-y-0 left-0 z-40 w-72 md:relative md:w-64 md:z-auto md:flex shrink-0 h-full shadow-xl md:shadow-none'
+          : 'hidden'
+          }`}
       >
         <ErrorBoundary>
-          <FileTree
-            files={files}
-            activeFileId={activeFileId}
-            onSelectFile={(id) => {
-              handleSelectFile(id);
-              if (window.innerWidth < 768) setIsSidebarOpen(false);
-            }}
-            onCreateFile={handleCreateFile}
-            onRenameFile={handleRenameFile}
-            onDeleteFile={handleDeleteFile}
-            onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-            onCloseSidebar={() => setIsSidebarOpen(false)}
-            onReturnToLanding={handleReturnToLanding}
-          />
+          {workspaceMode === 'chattyfi' ? (
+            <ConversationSidebar
+              conversations={conversations}
+              activeConversationId={activeConversationId}
+              onSelectConversation={(id) => {
+                setActiveConversationId(id);
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+              }}
+              onCreateConversation={() => handleCreateConversation('Untitled Conversation')}
+              onRenameConversation={handleRenameConversation}
+              onTogglePinConversation={handleTogglePinConversation}
+              onDeleteConversation={handleDeleteConversation}
+              searchQuery={conversationSearchQuery}
+              onSearchChange={setConversationSearchQuery}
+              workspaceMode={workspaceMode}
+              onSwitchWorkspaceMode={handleSwitchWorkspaceMode}
+              onOpenFullGraph={() => setIsFullscreenGraph(true)}
+              files={files}
+              onSelectFile={(id) => {
+                handleSelectFile(id);
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+              }}
+              onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onCloseSidebar={() => setIsSidebarOpen(false)}
+              onReturnToLanding={handleReturnToLanding}
+              isLoading={isLoadingConversations}
+            />
+          ) : (
+            <FileTree
+              files={files}
+              activeFileId={activeFileId}
+              onSelectFile={(id) => {
+                handleSelectFile(id);
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+              }}
+              onCreateFile={handleCreateFile}
+              onRenameFile={handleRenameFile}
+              onDeleteFile={handleDeleteFile}
+              onOpenCommandPalette={() => setIsCmdPaletteOpen(true)}
+              workspaceMode={workspaceMode}
+              onSwitchWorkspaceMode={handleSwitchWorkspaceMode}
+              onOpenFullGraph={() => setIsFullscreenGraph(true)}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onCloseSidebar={() => setIsSidebarOpen(false)}
+              onReturnToLanding={handleReturnToLanding}
+            />
+          )}
         </ErrorBoundary>
       </div>
 
-      {/* Center Pane: Markdown Editor (Flex-1 on all screen sizes) */}
+      {/* Center Pane: ChattyFi Conversation Interface or Markdown Editor */}
       <ErrorBoundary>
-        <Editor
-          file={activeFile}
-          onSave={handleSaveFile}
-          onProcessAI={handleProcessAI}
-          isAIProcessing={isAIProcessing}
-          onOpenFullGraph={() => setIsFullscreenGraph(true)}
-          onOpenSynthesis={handleOpenSynthesis}
-          onOpenAIConfig={() => setIsAIConfigOpen(true)}
-          aiConfig={aiConfig}
-          onNavigateToFile={handleSelectFile}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          isRightPanelOpen={isRightPanelOpen}
-          onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
-          onReturnToLanding={handleReturnToLanding}
-        />
+        {workspaceMode === 'chattyfi' ? (
+          <ChattyFiView
+            conversation={activeConversation}
+            messages={conversationMessages}
+            files={files}
+            onSendMessage={handleSendChatMessage}
+            onStopGeneration={handleStopChatGeneration}
+            onRegenerateMessage={handleRegenerateChatMessage}
+            onLoadDemoConversation={handleLoadDemoConversation}
+            onRenameConversation={handleRenameConversation}
+            onCreateConversation={() => handleCreateConversation('Untitled Conversation')}
+            onSwitchToNotes={() => handleSwitchWorkspaceMode('notes')}
+            onOpenNoteByTitle={handleOpenNoteByTitle}
+            onOpenNoteById={handleOpenNoteById}
+            onOpenFullGraph={() => setIsFullscreenGraph(true)}
+            onOpenAIConfig={() => setIsAIConfigOpen(true)}
+            aiConfig={aiConfig}
+            isGenerating={isGeneratingReply}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            isRightPanelOpen={isRightPanelOpen}
+            onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            onReturnToLanding={handleReturnToLanding}
+          />
+        ) : (
+          <Editor
+            file={activeFile}
+            files={files}
+            onSave={handleSaveFile}
+            onProcessAI={handleProcessAI}
+            isAIProcessing={isAIProcessing}
+            onOpenFullGraph={() => setIsFullscreenGraph(true)}
+            onOpenSynthesis={handleOpenSynthesis}
+            onOpenAIConfig={() => setIsAIConfigOpen(true)}
+            aiConfig={aiConfig}
+            onNavigateToFile={handleSelectFile}
+            onOpenNoteByTitle={handleOpenNoteByTitle}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            isRightPanelOpen={isRightPanelOpen}
+            onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            onReturnToLanding={handleReturnToLanding}
+            onSwitchToChattyFi={() => handleSwitchWorkspaceMode('chattyfi')}
+          />
+        )}
       </ErrorBoundary>
 
       {/* Mobile Backdrop for Right Inspector Drawer */}
@@ -566,11 +1122,10 @@ export default function App() {
 
       {/* Right Pane: Graph View + Backlinks (In-flow on large screens, slide drawer on tablet/mobile) */}
       <div
-        className={`${
-          isRightPanelOpen
-            ? 'fixed inset-y-0 right-0 z-40 w-80 lg:relative lg:z-auto lg:flex flex-col h-full bg-[#F0F1ED] dark:bg-[#151518] border-l border-[#E3E5DF] dark:border-[#26262c] overflow-hidden shrink-0 shadow-xl lg:shadow-none'
-            : 'hidden'
-        }`}
+        className={`${isRightPanelOpen
+          ? 'fixed inset-y-0 right-0 z-40 w-80 lg:relative lg:z-auto lg:flex flex-col h-full bg-[#F0F1ED] dark:bg-[#151518] border-l border-[#E3E5DF] dark:border-[#26262c] overflow-hidden shrink-0 shadow-xl lg:shadow-none'
+          : 'hidden'
+          }`}
       >
         <ErrorBoundary>
           <GraphView

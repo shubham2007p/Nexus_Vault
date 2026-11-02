@@ -1,6 +1,6 @@
-# 📘 Chattifying: Comprehensive User & Architecture Guide (v2.1.0)
+# 📘 Nexus Vault: Comprehensive User & Architecture Guide (v2.1.0)
 
-> **Chattifying** is an AI-native personal knowledge management (PKM) vault and academic workspace. It bridges the gap between chaotic, intuitive note capture and textbook-grade formal knowledge representation.
+> **Nexus Vault** is an AI-native personal knowledge management (PKM) vault and academic workspace. It bridges the gap between chaotic, intuitive note capture and textbook-grade formal knowledge representation.
 
 ---
 
@@ -37,7 +37,7 @@
 ## 2. Core Functional Pillars
 
 ### 2.1 Dual Folder Architecture (`raw/` & `process/`)
-Chattifying strictly organizes notes into two distinct, dedicated spaces:
+Nexus Vault strictly organizes notes into two distinct, dedicated spaces:
 
 1. **`raw/` (Raw Notes Folder)**:
    - Reserved for unstructured note capture: lecture scribbles, personal metaphors, intuitive mental models, and raw thoughts.
@@ -80,7 +80,7 @@ Transforms raw classroom notes into textbook-grade formal companions:
    - Previous revisions are archived in `synthesis_versions` with overwrite protection.
 
 ### 2.4 Semantic Contextual Wikilinking & Graph Indexing
-Chattifying supports both standard Obsidian links and typed contextual links:
+Nexus Vault supports both standard Obsidian links and typed contextual links:
 
 - **Plain Link**: `[[Target Note]]`
 - **Contextual Link**: `[[Target Note | relationship | context explanation]]`

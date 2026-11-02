@@ -16,6 +16,8 @@ import {
   Folder,
   FolderOpen,
   ArrowLeft,
+  Sparkles,
+  Share2,
 } from 'lucide-react';
 import DeleteConfirmModal from './modals/DeleteConfirmModal';
 import CreateNoteModal from './modals/CreateNoteModal';
@@ -30,6 +32,9 @@ export default function FileTree({
   onRenameFile,
   onDeleteFile,
   onOpenCommandPalette,
+  workspaceMode = 'notes',
+  onSwitchWorkspaceMode,
+  onOpenFullGraph,
   theme = 'light',
   onToggleTheme,
   onCloseSidebar,
@@ -162,13 +167,13 @@ export default function FileTree({
             <button
               onClick={() => setIsPatchNotesOpen(true)}
               className="flex items-center gap-2 hover:opacity-85 transition-opacity text-left cursor-pointer"
-              title="Chattifying — Click to view system info & shortcuts"
+              title="Nexus Vault — Click to view system info & shortcuts"
             >
               <div className="w-6 h-6 rounded-md bg-[#287D54]/10 dark:bg-emerald-500/15 border border-[#287D54]/25 dark:border-emerald-500/30 flex items-center justify-center shrink-0">
                 <BookOpen className="w-3.5 h-3.5 text-[#287D54] dark:text-emerald-400" />
               </div>
               <span className="font-semibold text-xs tracking-tight text-[#242824] dark:text-[#F4F4F5] truncate">
-                Chattifying
+                Nexus Vault
               </span>
             </button>
           </div>
@@ -203,6 +208,49 @@ export default function FileTree({
             )}
           </div>
         </div>
+
+        {/* Workspace Mode Switcher: ChattyFi | Notes | Graph */}
+        {onSwitchWorkspaceMode && (
+          <div className="px-2.5 pt-2.5 pb-1">
+            <div className="grid grid-cols-3 p-0.5 rounded-lg bg-[#E3E5DF]/80 dark:bg-[#111215] border border-[#E3E5DF] dark:border-[#272A32]">
+              <button
+                data-testid="workspace-mode-chattyfi"
+                onClick={() => onSwitchWorkspaceMode('chattyfi')}
+                className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  workspaceMode === 'chattyfi'
+                    ? 'bg-white dark:bg-[#22242B] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824] dark:hover:text-[#F4F4F5]'
+                }`}
+                title="ChattyFi — Conversational Workspace"
+              >
+                <Sparkles className="w-3 h-3 text-[#287D54] dark:text-emerald-400 shrink-0" />
+                <span>ChattyFi</span>
+              </button>
+              <button
+                data-testid="workspace-mode-notes"
+                onClick={() => onSwitchWorkspaceMode('notes')}
+                className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  workspaceMode === 'notes'
+                    ? 'bg-white dark:bg-[#22242B] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824] dark:hover:text-[#F4F4F5]'
+                }`}
+                title={`Notes — Knowledge Editor (${safeFiles.length} notes)`}
+              >
+                <FileText className="w-3 h-3 text-[#287D54] dark:text-emerald-400 shrink-0" />
+                <span>Notes</span>
+              </button>
+              <button
+                data-testid="workspace-mode-graph"
+                onClick={() => onOpenFullGraph && onOpenFullGraph()}
+                className="flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[11px] font-medium text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824] dark:hover:text-[#F4F4F5] transition-colors cursor-pointer"
+                title="Graph — Knowledge Visualization"
+              >
+                <Share2 className="w-3 h-3 text-[#666B65] dark:text-[#A1A1AA] shrink-0" />
+                <span>Graph</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Primary Action: New Note Button */}
         <div className="p-2.5 pb-2">

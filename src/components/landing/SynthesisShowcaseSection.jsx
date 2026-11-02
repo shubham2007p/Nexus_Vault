@@ -118,7 +118,7 @@ export default function SynthesisShowcaseSection() {
             <span className="italic font-normal text-[#2D5A43]">Synthesize a textbook-grade companion.</span>
           </h2>
           <p className="text-[#66605A] text-base sm:text-lg leading-relaxed">
-            Most AI note tools overwrite your personal voice with generic summaries. Chattifying separates your workspace into two mirrored folders: your original scribbles stay 100% untouched in{' '}
+            Most AI note tools overwrite your personal voice with generic summaries. Nexus Vault separates your workspace into two mirrored folders: your original scribbles stay 100% untouched in{' '}
             <code className="font-mono text-xs bg-[#F4EFEA] px-1.5 py-0.5 rounded border border-[#E7E2DA] text-[#2D5A43] font-semibold">
               raw/
             </code>
@@ -204,7 +204,7 @@ export default function SynthesisShowcaseSection() {
                     <span>Why keep the raw note separate?</span>
                   </div>
                   <p className="text-[11px] leading-relaxed">
-                    Your informal analogies are often the fastest way to recall a concept. Chattifying never mutates your <code className="font-mono">raw/</code> file—it marks the note with a golden companion indicator and links it to its formal counterpart.
+                    Your informal analogies are often the fastest way to recall a concept. Nexus Vault never mutates your <code className="font-mono">raw/</code> file—it marks the note with a golden companion indicator and links it to its formal counterpart.
                   </p>
                 </div>
               </div>

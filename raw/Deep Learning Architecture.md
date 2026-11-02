@@ -8,3 +8,4 @@ Deep Learning models utilize stacked layers to progressively extract higher-leve
 - [[Transformer Architecture | modern_standard | Replaces recurrent layers with parallel self-attention computation]]
 
 Relies on [[Neural Networks]] foundation.
+
