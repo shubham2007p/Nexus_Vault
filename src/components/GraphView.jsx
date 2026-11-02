@@ -13,7 +13,10 @@ import {
   Maximize2,
   Minimize2,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Sparkles,
+  MessageSquare,
+  Loader2,
 } from 'lucide-react';
 import { forceCollide, forceCenter } from 'd3-force-3d';
 
@@ -34,6 +37,8 @@ export default function GraphView({
   graphData,
   globalGraphData,
   activeFileId,
+  activeConversationId,
+  workspaceMode = 'notes',
   onSelectFile,
   showAILinks = true,
   onToggleShowAILinks,
@@ -47,7 +52,11 @@ export default function GraphView({
   const drawnLabelBoxesRef = useRef([]);
   const nodePositionsRef = useRef(new Map());
   const [dimensions, setDimensions] = useState({ width: 320, height: 252 });
+  const [graphMode, setGraphMode] = useState(workspaceMode === 'chattyfi' ? 'conversation' : 'notes'); // 'notes' | 'knowledge' | 'conversation'
   const [perspective, setPerspective] = useState('local'); // 'local' | 'global'
+  const [knowledgeGraphData, setKnowledgeGraphData] = useState({ nodes: [], edges: [], links: [] });
+  const [conversationGraphData, setConversationGraphData] = useState({ nodes: [], edges: [], links: [] });
+  const [isLoadingModeData, setIsLoadingModeData] = useState(false);
   const [hoveredNode, setHoveredNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [internalIsFullscreen, setInternalIsFullscreen] = useState(false);
@@ -104,7 +113,30 @@ export default function GraphView({
     }
   }, [isCollapsed]);
 
-  // When toggling fullscreen or perspective, adjust bounds & zoomToFit
+  // Fetch data for Knowledge Graph or Conversation Graph when selected
+  useEffect(() => {
+    if (graphMode === 'knowledge') {
+      setIsLoadingModeData(true);
+      fetch('/api/knowledge-graph')
+        .then((res) => (res.ok ? res.json() : { nodes: [], edges: [], links: [] }))
+        .then((data) => setKnowledgeGraphData(data))
+        .catch((err) => console.error('Error fetching knowledge graph:', err))
+        .finally(() => setIsLoadingModeData(false));
+    } else if (graphMode === 'conversation') {
+      if (activeConversationId) {
+        setIsLoadingModeData(true);
+        fetch(`/api/chattyfi/conversations/${activeConversationId}/graph`)
+          .then((res) => (res.ok ? res.json() : { nodes: [], edges: [], links: [] }))
+          .then((data) => setConversationGraphData(data))
+          .catch((err) => console.error('Error fetching conversation graph:', err))
+          .finally(() => setIsLoadingModeData(false));
+      } else {
+        setConversationGraphData({ nodes: [], edges: [], links: [] });
+      }
+    }
+  }, [graphMode, activeConversationId]);
+
+  // When toggling fullscreen, perspective, or graph mode, adjust bounds & zoomToFit
   useEffect(() => {
     updateBounds();
     const timer = setTimeout(() => {
@@ -113,7 +145,7 @@ export default function GraphView({
       fgRef.current?.zoomToFit?.(320, isFullscreen ? 55 : 18);
     }, 120);
     return () => clearTimeout(timer);
-  }, [isFullscreen, perspective]);
+  }, [isFullscreen, perspective, graphMode]);
 
   // Escape key exits fullscreen
   useEffect(() => {
@@ -138,8 +170,17 @@ export default function GraphView({
     }
   }, [showAILinks]);
 
-  // Determine current active dataset based on perspective
-  const activeDataset = perspective === 'global' ? globalGraphData : graphData;
+  // Determine current active dataset based on graphMode and perspective
+  const activeDataset = useMemo(() => {
+    if (graphMode === 'knowledge') {
+      return knowledgeGraphData;
+    }
+    if (graphMode === 'conversation') {
+      return conversationGraphData;
+    }
+    return perspective === 'global' ? globalGraphData : graphData;
+  }, [graphMode, perspective, knowledgeGraphData, conversationGraphData, globalGraphData, graphData]);
+
   const nodes = Array.isArray(activeDataset?.nodes) ? activeDataset.nodes : [];
   const rawLinks = Array.isArray(activeDataset?.links)
     ? activeDataset.links
@@ -162,7 +203,7 @@ export default function GraphView({
   // NOTE: hoveredNode is deliberately excluded from dependencies to prevent repoping/reheating on hover!
   const safeGraphData = useMemo(() => {
     let filteredNodes = nodes;
-    if (perspective === 'local') {
+    if (graphMode === 'notes' && perspective === 'local') {
       if (!showAILinks) {
         const connectedNodeIds = new Set();
         connectedNodeIds.add(String(activeFileId));
@@ -204,7 +245,7 @@ export default function GraphView({
       }),
       links: effectiveLinks.map((e) => ({ ...e })),
     };
-  }, [nodes, effectiveLinks, activeFileId, perspective, showAILinks]);
+  }, [nodes, effectiveLinks, activeFileId, perspective, showAILinks, graphMode]);
 
   // Apply Obsidian-like physical charge and spring forces
   // Only reconfigures when perspective changes (local vs global)
@@ -300,10 +341,10 @@ export default function GraphView({
       {isFullscreen ? (
         /* MAXIMIZED HEADER - FULL TOOLBAR */
         <div className="h-13 px-5 bg-[#141417] border-b border-[#26262c] flex items-center justify-between shrink-0 gap-3">
-          {/* Left Section: Title + Perspective Switcher + Metrics */}
+          {/* Left Section: Title + 3-Way Graph Mode Switcher + Metrics */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 pr-3 border-r border-[#26262c]">
-              <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/25 flex items-center justify-center text-purple-400">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
                 <Network className="w-4 h-4" />
               </div>
               <span className="font-semibold text-xs text-[#f4f4f5]">Vault Knowledge Graph</span>
@@ -312,52 +353,109 @@ export default function GraphView({
               </span>
             </div>
 
-            {/* Perspective Switcher - ONLY ON MAXIMIZED VIEW */}
+            {/* 3-Way Graph Mode Switcher */}
             <div className="flex items-center p-0.5 bg-[#1b1b1f] border border-[#26262c] rounded-lg text-xs">
               <button
                 onClick={() => {
-                  setPerspective('local');
+                  setGraphMode('notes');
                   setSearchQuery('');
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                  perspective === 'local'
-                    ? 'bg-[#27272e] text-[#f4f4f5] shadow-sm'
+                  graphMode === 'notes'
+                    ? 'bg-[#27272e] text-[#f4f4f5] shadow-xs'
                     : 'text-[#8e8e98] hover:text-[#d4d4d8]'
                 }`}
-                title="Local neighborhood of selected note"
+                title="Vault Notes Graph: documents and wiki links"
               >
-                <Compass className="w-3.5 h-3.5 text-purple-400" />
-                <span>Local</span>
+                <Network className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Notes Graph</span>
               </button>
               <button
-                onClick={() => setPerspective('global')}
+                onClick={() => {
+                  setGraphMode('knowledge');
+                  setSearchQuery('');
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                  perspective === 'global'
-                    ? 'bg-[#27272e] text-[#f4f4f5] shadow-sm'
+                  graphMode === 'knowledge'
+                    ? 'bg-[#27272e] text-[#f4f4f5] shadow-xs'
                     : 'text-[#8e8e98] hover:text-[#d4d4d8]'
                 }`}
-                title="Full global graph of all notes and clusters in vault"
+                title="Persistent Knowledge Graph: canonical topics and subtopics"
               >
-                <Globe className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Global</span>
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>Knowledge Graph</span>
+              </button>
+              <button
+                onClick={() => {
+                  setGraphMode('conversation');
+                  setSearchQuery('');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                  graphMode === 'conversation'
+                    ? 'bg-[#27272e] text-[#f4f4f5] shadow-xs'
+                    : 'text-[#8e8e98] hover:text-[#d4d4d8]'
+                }`}
+                title="Conversation Graph: current discussion topics and captured notes"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+                <span>Conversation Graph</span>
               </button>
             </div>
 
+            {/* Sub-perspective Switcher for Notes Graph */}
+            {graphMode === 'notes' && (
+              <div className="flex items-center p-0.5 bg-[#1b1b1f] border border-[#26262c] rounded-lg text-xs">
+                <button
+                  onClick={() => {
+                    setPerspective('local');
+                    setSearchQuery('');
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                    perspective === 'local'
+                      ? 'bg-[#27272e] text-[#f4f4f5] shadow-xs'
+                      : 'text-[#8e8e98] hover:text-[#d4d4d8]'
+                  }`}
+                  title="Local neighborhood of selected note"
+                >
+                  <Compass className="w-3 h-3 text-emerald-400" />
+                  <span>Local</span>
+                </button>
+                <button
+                  onClick={() => setPerspective('global')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                    perspective === 'global'
+                      ? 'bg-[#27272e] text-[#f4f4f5] shadow-xs'
+                      : 'text-[#8e8e98] hover:text-[#d4d4d8]'
+                  }`}
+                  title="Full global graph of all notes and clusters in vault"
+                >
+                  <Globe className="w-3 h-3 text-indigo-400" />
+                  <span>Global</span>
+                </button>
+              </div>
+            )}
+
             <span className="text-xs text-[#71717a] font-mono hidden md:inline">
-              {safeGraphData.nodes.length} notes • {safeGraphData.links.length} connections
+              {isLoadingModeData ? (
+                <span className="inline-flex items-center gap-1 text-purple-400">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Loading...
+                </span>
+              ) : (
+                `${safeGraphData.nodes.length} nodes • ${safeGraphData.links.length} connections`
+              )}
             </span>
           </div>
 
           {/* Right Section: Search, AI Toggle, Zoom Controls, Minimize */}
           <div className="flex items-center gap-2 ml-auto">
             {/* Search Bar */}
-            <div className="flex items-center bg-[#1c1c20] border border-[#2e2e36] focus-within:border-purple-500/50 rounded-lg px-2.5 py-1">
-              <Search className="w-3.5 h-3.5 text-purple-400 mr-2 shrink-0" />
+            <div className="flex items-center bg-[#1c1c20] border border-[#2e2e36] focus-within:border-emerald-500/50 rounded-lg px-2.5 py-1">
+              <Search className="w-3.5 h-3.5 text-emerald-400 mr-2 shrink-0" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Find note in graph..."
+                placeholder="Find node in graph..."
                 className="w-36 md:w-52 bg-transparent text-xs text-[#f4f4f5] focus:outline-none placeholder-[#71717a]"
               />
               {searchQuery && (
@@ -435,9 +533,47 @@ export default function GraphView({
               <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
             </button>
             <Network className="w-3.5 h-3.5 text-[#287D54] dark:text-[#2EA468]" />
-            <span className="font-semibold text-xs text-[#242824] dark:text-[#F4F4F5]">Graph View</span>
+            <span className="font-semibold text-xs text-[#242824] dark:text-[#F4F4F5]">Graph</span>
+            
+            {/* 3-Mode Compact Segmented Control */}
+            <div className="flex items-center p-0.5 bg-[#E3E5DF] dark:bg-[#202126] rounded-md text-[10px] ml-1">
+              <button
+                onClick={() => setGraphMode('notes')}
+                className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                  graphMode === 'notes'
+                    ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
+                }`}
+                title="Notes Graph"
+              >
+                Notes
+              </button>
+              <button
+                onClick={() => setGraphMode('knowledge')}
+                className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                  graphMode === 'knowledge'
+                    ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
+                }`}
+                title="Persistent Knowledge Graph"
+              >
+                Topics
+              </button>
+              <button
+                onClick={() => setGraphMode('conversation')}
+                className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                  graphMode === 'conversation'
+                    ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
+                }`}
+                title="Conversation Graph"
+              >
+                Chat
+              </button>
+            </div>
+
             {safeGraphData.nodes.length > 0 && (
-              <span className="text-xs font-mono text-[#4A4F49] dark:text-[#A1A1AA]">
+              <span className="text-[11px] font-mono text-[#4A4F49] dark:text-[#A1A1AA]">
                 ({safeGraphData.nodes.length})
               </span>
             )}
@@ -468,13 +604,31 @@ export default function GraphView({
       {/* Canvas or Empty State (Hidden when collapsed) */}
       {!isCollapsed && (
         nodes.length === 0 ? (
-          <div className="flex-1 bg-[#F7F7F4] dark:bg-[#15161A] flex flex-col items-center justify-center p-3 text-center transition-colors">
-            <Network className="w-5 h-5 mb-1.5 text-[#4A4F49] dark:text-[#52525B]" />
+          <div className="flex-1 bg-[#F7F7F4] dark:bg-[#15161A] flex flex-col items-center justify-center p-4 text-center transition-colors">
+            {graphMode === 'conversation' ? (
+              <MessageSquare className="w-6 h-6 mb-2 text-blue-500/70" />
+            ) : graphMode === 'knowledge' ? (
+              <Sparkles className="w-6 h-6 mb-2 text-purple-500/70" />
+            ) : (
+              <Network className="w-6 h-6 mb-2 text-[#4A4F49] dark:text-[#52525B]" />
+            )}
             <p className="text-xs font-semibold text-[#242824] dark:text-[#F4F4F5]">
-              {perspective === 'local' ? 'No connections' : 'No graphable notes'}
+              {graphMode === 'conversation'
+                ? (!activeConversationId ? 'No active conversation' : 'Conversation graph empty')
+                : graphMode === 'knowledge'
+                ? 'No persistent topics yet'
+                : perspective === 'local'
+                ? 'No connections'
+                : 'No graphable notes'}
             </p>
-            <p className="text-xs text-[#4A4F49] dark:text-[#A1A1AA] mt-0.5 max-w-[200px]">
-              {perspective === 'local'
+            <p className="text-xs text-[#4A4F49] dark:text-[#A1A1AA] mt-1 max-w-[240px]">
+              {graphMode === 'conversation'
+                ? (!activeConversationId
+                    ? 'Select or start a conversation to view its concept graph.'
+                    : 'Discuss or capture insights to map concepts explored in this chat.')
+                : graphMode === 'knowledge'
+                ? 'Capture conversation insights to construct canonical knowledge topics.'
+                : perspective === 'local'
                 ? 'Add [[wikilinks]] or discover AI links below.'
                 : 'Create notes to visualize clusters.'}
             </p>
@@ -526,7 +680,20 @@ export default function GraphView({
                 Boolean(searchQuery) &&
                 nodeTitle.toLowerCase().includes(searchQuery.toLowerCase().trim());
 
-              const baseR = isCenter ? 5.8 : isHovered ? 5.2 : isUnresolved ? 3.2 : 3.8;
+              const isTopic = node.type === 'persistent_topic' || node.type === 'conversation_topic';
+              const isSubtopic = node.type === 'subtopic';
+              const isCapturedNote = node.type === 'captured_note';
+              const baseR = isTopic
+                ? (isFullscreen ? 7.2 : 5.8)
+                : isCenter
+                ? 5.8
+                : isHovered
+                ? 5.2
+                : isUnresolved
+                ? 3.2
+                : isSubtopic
+                ? 3.6
+                : 4.0;
               const displayLabel = nodeTitle;
 
               // 1. Subtle Selection Ring (Quiet, No Blurry Glow)
@@ -552,6 +719,14 @@ export default function GraphView({
                 ctx.fillStyle = '#E7A23B';
               } else if (isUnresolved) {
                 ctx.fillStyle = isDark ? '#52525B' : '#9CA3AF';
+              } else if (isTopic) {
+                ctx.fillStyle = isDark ? '#A78BFA' : '#7C3AED';
+              } else if (isSubtopic) {
+                ctx.fillStyle = isDark ? '#38BDF8' : '#0284C7';
+              } else if (isCapturedNote || node.note_type === 'raw') {
+                ctx.fillStyle = isDark ? '#34D399' : '#059669';
+              } else if (node.note_type === 'formal') {
+                ctx.fillStyle = isDark ? '#F59E0B' : '#D97706';
               } else if (perspective === 'global') {
                 if ((node.degree || 0) >= 3) {
                   ctx.fillStyle = isDark ? '#60A5FA' : '#2563EB';
@@ -564,6 +739,15 @@ export default function GraphView({
                 ctx.fillStyle = isHovered ? (isDark ? '#FFFFFF' : '#1F6342') : (isDark ? '#A1A1AA' : '#4B5563');
               }
               ctx.fill();
+
+              // Topic Outer Accent Ring
+              if (isTopic) {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, baseR + 2.5, 0, 2 * Math.PI, false);
+                ctx.strokeStyle = isDark ? 'rgba(167, 139, 250, 0.5)' : 'rgba(124, 58, 237, 0.4)';
+                ctx.lineWidth = 1.0 / (globalScale || 1);
+                ctx.stroke();
+              }
 
               // 3. Label Text & Non-Overlapping Pill Engine
               const shouldAttemptLabel = isFullscreen
@@ -662,9 +846,9 @@ export default function GraphView({
                 return;
               }
 
-              const isPending = link.status === 'pending' || Number(link.is_ai_suggested) === 1 || link.is_ai_suggested === true;
+              const isDashed = link.edgeStyle === 'dashed' || link.status === 'pending' || Number(link.is_ai_suggested) === 1 || link.is_ai_suggested === true;
               
-              if (!showAILinks && isPending) {
+              if (!showAILinks && (link.status === 'pending' || Number(link.is_ai_suggested) === 1)) {
                 return;
               }
 
@@ -676,10 +860,18 @@ export default function GraphView({
               ctx.moveTo(start.x, start.y);
               ctx.lineTo(end.x, end.y);
 
-              if (isPending) {
+              if (isDashed) {
                 ctx.strokeStyle = isDark ? '#F59E0B' : '#E7A23B';
                 ctx.lineWidth = (isHoverConnected ? 1.5 : 1.1) / (globalScale || 1);
                 ctx.setLineDash([3, 3]);
+              } else if (link.relationship === 'contains_subtopic' || link.relationship === 'subtopic_of') {
+                ctx.strokeStyle = isHoverConnected ? (isDark ? '#818CF8' : '#4F46E5') : (isDark ? 'rgba(129, 140, 248, 0.35)' : 'rgba(99, 102, 241, 0.3)');
+                ctx.lineWidth = (isHoverConnected ? 1.5 : 0.9) / (globalScale || 1);
+                ctx.setLineDash([]);
+              } else if (link.relationship === 'canonically_documented_in' || link.relationship === 'captured_to_vault') {
+                ctx.strokeStyle = isHoverConnected ? (isDark ? '#34D399' : '#059669') : (isDark ? 'rgba(52, 211, 153, 0.4)' : 'rgba(5, 150, 105, 0.35)');
+                ctx.lineWidth = (isHoverConnected ? 1.6 : 1.0) / (globalScale || 1);
+                ctx.setLineDash([]);
               } else {
                 ctx.strokeStyle = isHoverConnected
                   ? (isDark ? '#2EA468' : '#287D54')

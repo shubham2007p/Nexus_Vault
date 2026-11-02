@@ -10,7 +10,7 @@ import NoteSynthesisModal from './components/modals/NoteSynthesisModal';
 import AIConfigModal from './components/modals/AIConfigModal';
 import ConversationSidebar from './components/chattyfi/ConversationSidebar';
 import ChattyFiView, { buildStage3StructuredReply } from './components/chattyfi/ChattyFiView';
-import { Sparkles, AlertCircle } from 'lucide-react';
+import { Sparkles, AlertCircle, Compass, Check } from 'lucide-react';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -102,6 +102,8 @@ export default function App() {
   const [isFullscreenGraph, setIsFullscreenGraph] = useState(false);
   const [isCmdPaletteOpen, setIsCmdPaletteOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [capturingMessageId, setCapturingMessageId] = useState(null);
+  const [ambiguousMatchData, setAmbiguousMatchData] = useState(null);
 
   // Theme state: defaults to light mode with persistent storage
   const [theme, setTheme] = useState(() => {
@@ -764,6 +766,57 @@ export default function App() {
     }
   };
 
+  const handleCaptureMessage = async (message, resolutionAction = null, explicitTargetId = null) => {
+    if (!activeConversationId || !message?.id) return;
+    setCapturingMessageId(message.id);
+    try {
+      const payload = {
+        messageId: message.id,
+      };
+      if (resolutionAction) {
+        payload.resolutionAction = resolutionAction;
+        if (explicitTargetId) payload.explicitTargetId = explicitTargetId;
+      }
+
+      const res = await fetch(`/api/chattyfi/conversations/${activeConversationId}/capture`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to capture message');
+      }
+
+      if (data.status === 'ambiguous_match') {
+        setAmbiguousMatchData({
+          message,
+          matches: data.matches || [],
+          topMatch: data.topMatch || null,
+        });
+        return;
+      }
+
+      setAmbiguousMatchData(null);
+      showToast(
+        data.status === 'appended_existing'
+          ? `Appended insights to [[${data.file?.title}]]`
+          : `Captured note [[${data.file?.title}]] to vault!`,
+        'success'
+      );
+
+      await fetchFiles();
+      await fetchGlobalGraph();
+      await fetchConversationDetail(activeConversationId);
+    } catch (err) {
+      console.error('Error capturing message to vault:', err);
+      showToast(err.message || 'Capture failed', 'error');
+    } finally {
+      setCapturingMessageId(null);
+    }
+  };
+
   const handleCreateFile = async (title, folder = 'raw') => {
     try {
       const note_type = folder === 'formal' || folder === 'process' ? 'formal' : 'raw';
@@ -1085,6 +1138,8 @@ export default function App() {
             isRightPanelOpen={isRightPanelOpen}
             onToggleRightPanel={() => setIsRightPanelOpen(!isRightPanelOpen)}
             onReturnToLanding={handleReturnToLanding}
+            onCaptureMessage={handleCaptureMessage}
+            capturingMessageId={capturingMessageId}
           />
         ) : (
           <Editor
@@ -1132,6 +1187,8 @@ export default function App() {
             graphData={graphData}
             globalGraphData={globalGraphData}
             activeFileId={activeFileId}
+            activeConversationId={activeConversationId}
+            workspaceMode={workspaceMode}
             onSelectFile={(id) => {
               handleSelectFile(id);
               if (window.innerWidth < 1024) setIsRightPanelOpen(false);
@@ -1211,6 +1268,104 @@ export default function App() {
         onSaveConfig={handleSaveAIConfig}
         theme={theme}
       />
+
+      {/* Ambiguous Match Resolution Modal */}
+      {ambiguousMatchData && (
+        <div
+          onClick={() => setAmbiguousMatchData(null)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-[#FAF9F5] dark:bg-[#15161A] border border-[#E3E5DF] dark:border-[#272A32] rounded-xl shadow-2xl overflow-hidden flex flex-col"
+          >
+            <div className="px-5 py-4 border-b border-[#E3E5DF] dark:border-[#272A32] flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-500">
+                  <Compass className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#242824] dark:text-[#F4F4F5]">
+                    Similar Vault Note Detected
+                  </h3>
+                  <p className="text-xs text-[#666B65] dark:text-[#A1A1AA]">
+                    Nexus Vault found closely related notes in your knowledge base
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAmbiguousMatchData(null)}
+                className="p-1 text-[#878C85] hover:text-[#242824] dark:hover:text-[#F4F4F5] rounded transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <p className="text-[#4A4F49] dark:text-[#D4D4D8] leading-relaxed">
+                We found existing note{' '}
+                <strong className="text-[#242824] dark:text-[#F4F4F5] font-semibold">
+                  [[{ambiguousMatchData.topMatch?.title}]]
+                </strong>{' '}
+                with{' '}
+                <span className="font-mono text-amber-600 dark:text-amber-400 font-medium">
+                  {Math.round((ambiguousMatchData.topMatch?.match_confidence || 0) * 100)}%
+                </span>{' '}
+                concept similarity. Choose how to structure this knowledge:
+              </p>
+
+              {ambiguousMatchData.matches && ambiguousMatchData.matches.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {ambiguousMatchData.matches.map((m) => (
+                    <div
+                      key={m.file_id}
+                      className="p-3 rounded-lg border border-[#E3E5DF] dark:border-[#272A32] bg-white dark:bg-[#1A1B20] flex items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-medium text-[#242824] dark:text-[#F4F4F5] truncate block">
+                          [[{m.title}]]
+                        </span>
+                        <span className="text-[11px] text-[#878C85] dark:text-[#71717A] font-mono">
+                          Confidence: {Math.round(m.match_confidence * 100)}% • {m.match_zone}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() =>
+                          handleCaptureMessage(
+                            ambiguousMatchData.message,
+                            'append_existing',
+                            m.file_id
+                          )
+                        }
+                        className="px-2.5 py-1 rounded bg-[#287D54] hover:bg-[#1F6342] text-white text-xs font-medium shrink-0 transition-colors cursor-pointer"
+                      >
+                        Append Here
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-3.5 border-t border-[#E3E5DF] dark:border-[#272A32] bg-[#F0F1ED] dark:bg-[#111113] flex items-center justify-between gap-2">
+              <button
+                onClick={() =>
+                  handleCaptureMessage(ambiguousMatchData.message, 'create_new')
+                }
+                className="px-3 py-1.5 rounded-lg border border-[#E3E5DF] dark:border-[#2E2E36] bg-white dark:bg-[#1C1C22] hover:bg-[#E8EAE4] dark:hover:bg-[#282832] text-[#242824] dark:text-[#E4E4E7] text-xs font-medium transition-colors cursor-pointer"
+              >
+                Create as New Note
+              </button>
+              <button
+                onClick={() => setAmbiguousMatchData(null)}
+                className="px-3 py-1.5 text-xs text-[#666B65] dark:text-[#A1A1AA] hover:text-[#242824] dark:hover:text-[#F4F4F5] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

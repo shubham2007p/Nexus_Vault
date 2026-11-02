@@ -12,6 +12,8 @@ import {
   ExternalLink,
   Lock,
   ArrowUpRight,
+  BookmarkPlus,
+  Loader2,
 } from 'lucide-react';
 import MarkdownMessage from './MarkdownMessage';
 
@@ -59,6 +61,8 @@ export default function MessageThread({
   onRegenerateMessage,
   onOpenNoteByTitle,
   onOpenNoteById,
+  onCaptureMessage,
+  capturingMessageId,
 }) {
   const [copiedId, setCopiedId] = useState(null);
   const [previewAttachment, setPreviewAttachment] = useState(null);
@@ -384,11 +388,26 @@ export default function MessageThread({
                     )}
 
                     {!rawNote && !formalNote && !isIncomplete && (
-                      <span className="text-[11px] font-mono text-[#878C85] dark:text-[#71717A]">
-                        {procStatus === 'processed' || procStatus === 'completed'
-                          ? 'Captured in Vault'
-                          : 'Vault capture: Ready'}
-                      </span>
+                      procStatus === 'processed' || procStatus === 'completed' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
+                          <Check className="w-3 h-3" />
+                          <span>Captured in Vault</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => onCaptureMessage && onCaptureMessage(msg)}
+                          disabled={capturingMessageId === msg.id}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-[#287D54] dark:text-emerald-400 border border-emerald-500/25 text-[11px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                          title="Capture this response directly into your Notes Vault"
+                        >
+                          {capturingMessageId === msg.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-[#287D54] dark:text-emerald-400" />
+                          ) : (
+                            <BookmarkPlus className="w-3 h-3 text-[#287D54] dark:text-emerald-400" />
+                          )}
+                          <span>{capturingMessageId === msg.id ? 'Capturing...' : 'Capture to Vault'}</span>
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

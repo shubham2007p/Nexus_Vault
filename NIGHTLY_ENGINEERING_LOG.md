@@ -13,7 +13,7 @@
 - [x] Git diff inspected and verified clean
 - [x] Cycle 1: Finish Knowledge Capture Backend & Linkage Pipeline
 - [x] Cycle 2: Three Distinct Graph Architecture (Conversation, Persistent Knowledge, Notes Graph)
-- [ ] Cycle 3: UI Integration of Knowledge Capture & Graph Switcher
+- [x] Cycle 3: UI Integration of Knowledge Capture & Graph Switcher
 - [ ] Cycle 4: Authentication & User Session Isolation
 - [ ] Cycle 5: Navigation, Page Architecture & Route Guards
 - [ ] Cycle 6: Onboarding, First-Run Experience & Help
@@ -57,9 +57,41 @@
 ---
 
 ### Cycle 3 — UI Integration of Knowledge Capture & 3-Graph Switcher
+- **Status:** COMPLETED & VERIFIED
+- **Changes Implemented:**
+  - `src/components/chattyfi/MessageThread.jsx`:
+    - Added interactive `Capture to Vault` button with `capturingMessageId` loading spinner.
+    - Updated captured state pill to render emerald checkmark and source note lineage link (`raw/[[Note]]` / `process/[[Note]]`).
+  - `src/components/chattyfi/ChattyFiView.jsx`:
+    - Wired `onCaptureMessage` and `capturingMessageId` down from `App.jsx` to `MessageThread`.
+  - `src/App.jsx`:
+    - Implemented `handleCaptureMessage`: calls `POST /api/chattyfi/conversations/:id/capture`, supports `append_existing` and `create_new`.
+    - Added Ambiguous Match Resolution Modal: prompts user cleanly when confidence is in the ambiguous zone (0.45–0.77), displaying candidate notes with match scores and options to append or create new.
+  - `src/components/GraphView.jsx`:
+    - Implemented 3-Way Graph Mode Switcher (`Notes Graph`, `Knowledge Graph`, `Conversation Graph`) in both Fullscreen Toolbar and Compact Sidebar Toolbar.
+    - Added dynamic loading and local caching for `/api/knowledge-graph` and `/api/chattyfi/conversations/:id/graph`.
+    - Styled distinct node types: Topic nodes (Vibrant Purple `#A78BFA` with double outer halo), Subtopics (Cyan `#38BDF8`), Captured Notes / Raw (Emerald `#34D399`), Formal Notes (Amber `#F59E0B`), Ghost Notes (Muted Slate `#52525B`).
+    - Styled distinct edge types: dashed for AI/pending links, solid indigo for subtopics, solid emerald for note provenance.
+    - Adaptive empty state for conversation graph ("Conversation graph empty - Discuss and capture concepts to map this discussion").
+- **Verification Evidence:**
+  - `scratch/test_browser_cycle3.mjs`: All 6 browser integration tests passed cleanly in Chrome via CDP.
+  - Screenshots captured:
+    - `cycle3_chattyfi_captured.png`
+    - `cycle3_graph_notes_mode.png`
+    - `cycle3_graph_knowledge_mode.png`
+    - `cycle3_graph_conversation_mode.png`
+  - Production build: `npm run build` passed in 6.12s with 0 errors.
+
+---
+
+### Cycle 4 — Authentication & Local User Session Security (Part 3)
 - **Status:** IN PROGRESS
 - **Objective:**
-  1. Wire the ChattyFi capture button (`Vault capture: Ready`) to call `POST /api/chattyfi/conversations/:id/capture`.
-  2. Implement ambiguous match modal for handling candidate notes when confidence is 0.45–0.77.
-  3. Integrate the 3-Way Graph Perspective Switcher (`Notes Graph`, `Persistent Knowledge Graph`, `Conversation Graph`) in `src/components/GraphView.jsx` with distinct visual styling and node palettes.
+  1. Add SQLite `users` table (`id`, `email`, `password_hash`, `name`, `created_at`).
+  2. Implement backend auth endpoints in `server/index.js` (`POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`).
+  3. Use secure Node.js standard library cryptographic hashing (`crypto.scrypt` with salt and timing-safe equal comparison).
+  4. Implement session token generation and verification via `nexus_session_token` cookie or Bearer header.
+  5. Enforce user isolation: fallback seamlessly to `default_user` when unauthenticated in local demo mode, while strictly isolating records when a user is signed in.
+  6. Add frontend Auth Modal / Account state in `src/App.jsx`.
+
 

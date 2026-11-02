@@ -125,6 +125,8 @@ export default function ChattyFiView({
   isRightPanelOpen,
   onToggleRightPanel,
   onReturnToLanding,
+  onCaptureMessage,
+  capturingMessageId,
 }) {
   const [composerText, setComposerText] = useState('');
   const [titleInput, setTitleInput] = useState(conversation?.title || 'New Conversation');
@@ -330,6 +332,8 @@ export default function ChattyFiView({
         onRegenerateMessage={onRegenerateMessage}
         onOpenNoteByTitle={onOpenNoteByTitle}
         onOpenNoteById={onOpenNoteById}
+        onCaptureMessage={onCaptureMessage}
+        capturingMessageId={capturingMessageId}
       />
 
       {/* Centered Bottom Composer */}
