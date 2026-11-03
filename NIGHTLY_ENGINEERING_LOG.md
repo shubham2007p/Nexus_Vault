@@ -18,8 +18,8 @@
 - [x] Cycle 5: Navigation, Page Architecture & Route Guards
 - [x] Cycle 6: Onboarding, First-Run Experience & Help
 - [x] Cycle 7: Security Hardening & Production Architecture Report
-- [x] Cycle 8: FTS5 vs Vector DB Technical Evaluation
-- [x] Cycle 9: Comprehensive Regression & Visual Audit
+- [ ] Cycle 8: FTS5 vs Vector DB Technical Evaluation
+- [ ] Cycle 9: Comprehensive Regression & Visual Audit
 
 ---
 
@@ -171,49 +171,12 @@
 ---
 
 ### Cycle 8 — FTS5 vs Vector DB Technical Evaluation
-- **Status:** COMPLETED & VERIFIED
-- **Changes Implemented:**
-  - Conducted empirical SQLite FTS5 latency and memory footprint benchmarking via `scratch/benchmark_fts5.mjs`:
-    - Measured 800 real search queries on active database: **0.506 ms** average query latency with sub-5MB memory overhead.
-    - Zero external network dependencies, zero API costs, 100% offline privacy.
-  - Published comprehensive Architectural Decision Record (ADR) in `FTS5_VS_VECTOR_EVALUATION.md`:
-    - Comparative Tradeoff Matrix: SQLite FTS5 vs Embedded Vector DB (LanceDB/Chroma) vs Hosted Vector DB (Pinecone/Weaviate).
-    - Failure Mode Analysis: Why pure dense vector search fails on technical vaults (exact acronym degradation, code identifier blur, LaTeX equation distortion, dual-write synchronization hazards).
-    - Nexus Vault 3-Zone Scoring Pipeline (High confidence append, Ambiguous match user prompt, Low confidence fresh note).
-    - Long-term roadmap: `sqlite-vec` integration with local ONNX/Wasm embeddings and Reciprocal Rank Fusion (RRF) when vaults exceed 10,000 documents.
-- **Verification Evidence:**
-  - `scratch/benchmark_fts5.mjs`: All 8 benchmark suites passed cleanly with sub-millisecond latencies.
-  - `FTS5_VS_VECTOR_EVALUATION.md` created and committed.
-
----
-
-### Cycle 9 — Comprehensive End-to-End Regression & Visual Audit
-- **Status:** COMPLETED & VERIFIED
-- **Changes Implemented:**
-  - Fixed canvas edge rendering bug in `src/components/GraphView.jsx`: resolved missing `isPending` variable in `linkCanvasObject` preventing canvas crashes when edge relationship labels render.
-  - Hardened full-graph maximization in `src/App.jsx`: ensured opening fullscreen graph automatically opens and syncs right inspector panel state across all 4 entry points.
-  - Built and executed end-to-end regression audit suite in `scratch/test_final_regression.mjs`:
-    - Verified Notes Graph (`GET /api/graph`): 39 nodes, 130 links, typed nodes.
-    - Verified Knowledge Graph (`GET /api/knowledge-graph`): 12 canonical topic/subtopic nodes.
-    - Verified Conversation-Scoped Graph (`GET /api/chattyfi/conversations/:id/graph`): correctly scoped to active conversation.
-    - Verified Safeguard 5: incomplete and interrupted message captures rejected with HTTP 400 `INCOMPLETE_MESSAGE_CAPTURE`.
-    - Verified User Authentication: salted `crypto.scrypt` registration, login, and session resolution.
-    - Verified FTS5 Search latency: returned in 15.9 ms.
-    - Verified Notes Reading View: Notion-inspired monospace typography, LaTeX equations, callouts, and frontmatter.
-    - Verified Notes Edit View: CodeMirror 6 editor active with autosave and source of truth.
-    - Verified ChattyFi Workspace: conversation threads, capture buttons, and lineage provenance pills.
-    - Verified 3-Way Graph Mode Switcher: compact and fullscreen toolbar switching between Notes, Topics, and Conversation graphs.
-    - Verified Help Modal: v2.2.0 Power Guide with keyboard accessibility (Escape to close).
-- **Verification Evidence:**
-  - `scratch/test_final_regression.mjs`: All 11/11 system checks passed cleanly.
-  - Production build: `npm run build` passed in 6.06s with 0 errors.
-  - Visual Audit Screenshots Captured in Artifact Directory:
-    - `final_audit_notes_reading.png`
-    - `final_audit_notes_edit.png`
-    - `final_audit_chattyfi.png`
-    - `final_audit_graph_3modes.png`
-    - `final_audit_power_guide.png`
-
+- **Status:** IN PROGRESS
+- **Objective:**
+  1. Benchmark SQLite FTS5 search latency, memory footprint, and exact lexical/acronym recall.
+  2. Compare against Vector Database architectures (e.g. pgvector, Chroma, Pinecone, LanceDB).
+  3. Evaluate hybrid BM25 + dense embedding topologies.
+  4. Author a rigorous engineering decision record `FTS5_VS_VECTOR_EVALUATION.md`.
 
 
 

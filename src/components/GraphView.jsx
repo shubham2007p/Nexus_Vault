@@ -38,6 +38,7 @@ export default function GraphView({
   globalGraphData,
   activeFileId,
   activeConversationId,
+  conversationMessages = [],
   workspaceMode = 'notes',
   onSelectFile,
   showAILinks = true,
@@ -58,6 +59,7 @@ export default function GraphView({
   const [conversationGraphData, setConversationGraphData] = useState({ nodes: [], edges: [], links: [] });
   const [isLoadingModeData, setIsLoadingModeData] = useState(false);
   const [hoveredNode, setHoveredNode] = useState(null);
+  const [selectedChatNode, setSelectedChatNode] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [internalIsFullscreen, setInternalIsFullscreen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -74,6 +76,15 @@ export default function GraphView({
     }
   };
 
+  // Synchronize graphMode with workspaceMode
+  useEffect(() => {
+    if (workspaceMode === 'chattyfi') {
+      setGraphMode('conversation');
+    } else {
+      setGraphMode('notes');
+    }
+  }, [workspaceMode]);
+
   // Update canvas bounds dynamically for sidebar corner vs portal fullscreen
   const updateBounds = () => {
     if (isFullscreen) {
@@ -83,7 +94,9 @@ export default function GraphView({
       });
     } else if (containerRef.current) {
       const headerH = 36;
-      const totalH = isCollapsed ? 36 : 288;
+      const isChattyFi = workspaceMode === 'chattyfi';
+      const availableH = containerRef.current.parentElement?.clientHeight || containerRef.current.clientHeight || 500;
+      const totalH = isCollapsed ? 36 : (isChattyFi ? Math.max(288, availableH) : 288);
       setDimensions({
         width: containerRef.current.clientWidth || 320,
         height: Math.max(100, totalH - headerH),
@@ -96,7 +109,7 @@ export default function GraphView({
     const handleResize = () => updateBounds();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isFullscreen]);
+  }, [isFullscreen, workspaceMode, isCollapsed]);
 
   // When collapsing / expanding the graph in sidebar, smoothly recalculate bounds
   useEffect(() => {
@@ -111,9 +124,9 @@ export default function GraphView({
         return () => clearTimeout(timer);
       }
     }
-  }, [isCollapsed]);
+  }, [isCollapsed, workspaceMode]);
 
-  // Fetch data for Knowledge Graph or Conversation Graph when selected
+  // Fetch data for Knowledge Graph or Conversation Graph when selected or updated
   useEffect(() => {
     if (graphMode === 'knowledge') {
       setIsLoadingModeData(true);
@@ -127,14 +140,20 @@ export default function GraphView({
         setIsLoadingModeData(true);
         fetch(`/api/chattyfi/conversations/${activeConversationId}/graph`)
           .then((res) => (res.ok ? res.json() : { nodes: [], edges: [], links: [] }))
-          .then((data) => setConversationGraphData(data))
+          .then((data) => {
+            setConversationGraphData(data);
+            setTimeout(() => {
+              fgRef.current?.d3ReheatSimulation?.();
+              fgRef.current?.zoomToFit?.(280, 20);
+            }, 60);
+          })
           .catch((err) => console.error('Error fetching conversation graph:', err))
           .finally(() => setIsLoadingModeData(false));
       } else {
         setConversationGraphData({ nodes: [], edges: [], links: [] });
       }
     }
-  }, [graphMode, activeConversationId]);
+  }, [graphMode, activeConversationId, conversationMessages?.length]);
 
   // When toggling fullscreen, perspective, or graph mode, adjust bounds & zoomToFit
   useEffect(() => {
@@ -334,7 +353,7 @@ export default function GraphView({
       className={
         isFullscreen
           ? 'fixed inset-0 z-50 bg-[#111113] flex flex-col w-screen h-screen select-none animate-in fade-in duration-150'
-          : `${isCollapsed ? 'h-9' : 'h-72'} bg-[#F7F7F4] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col relative select-none shrink-0 transition-all duration-150`
+          : `${isCollapsed ? 'h-9' : (workspaceMode === 'chattyfi' ? 'flex-1 h-full' : 'h-72')} bg-[#F7F7F4] dark:bg-[#15161A] border-b border-[#E3E5DF] dark:border-[#272A32] flex flex-col relative select-none shrink-0 transition-all duration-150`
       }
     >
       {/* Header Toolbar */}
@@ -535,42 +554,42 @@ export default function GraphView({
             <Network className="w-3.5 h-3.5 text-[#287D54] dark:text-[#2EA468]" />
             <span className="font-semibold text-xs text-[#242824] dark:text-[#F4F4F5]">Graph</span>
             
-            {/* 3-Mode Compact Segmented Control */}
-            <div className="flex items-center p-0.5 bg-[#E3E5DF] dark:bg-[#202126] rounded-md text-[10px] ml-1">
-              <button
-                onClick={() => setGraphMode('notes')}
-                className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
-                  graphMode === 'notes'
-                    ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
-                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
-                }`}
-                title="Notes Graph"
-              >
-                Notes
-              </button>
-              <button
-                onClick={() => setGraphMode('knowledge')}
-                className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
-                  graphMode === 'knowledge'
-                    ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
-                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
-                }`}
-                title="Persistent Knowledge Graph"
-              >
-                Topics
-              </button>
-              <button
-                onClick={() => setGraphMode('conversation')}
-                className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
-                  graphMode === 'conversation'
-                    ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
-                    : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
-                }`}
-                title="Conversation Graph"
-              >
-                Chat
-              </button>
-            </div>
+            {/* Mode Indicator / Switcher */}
+            {workspaceMode === 'chattyfi' ? (
+              <div className="flex items-center gap-1.5 ml-1">
+                <span className="font-semibold text-xs text-[#287D54] dark:text-[#2EA468]">
+                  Chat Context
+                </span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium font-mono">
+                  Local
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center p-0.5 bg-[#E3E5DF] dark:bg-[#202126] rounded-md text-[10px] ml-1">
+                <button
+                  onClick={() => setGraphMode('notes')}
+                  className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                    graphMode === 'notes'
+                      ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                      : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
+                  }`}
+                  title="Notes Graph"
+                >
+                  Notes
+                </button>
+                <button
+                  onClick={() => setGraphMode('knowledge')}
+                  className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                    graphMode === 'knowledge'
+                      ? 'bg-white dark:bg-[#2C2D35] text-[#242824] dark:text-[#F4F4F5] shadow-2xs'
+                      : 'text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824]'
+                  }`}
+                  title="Persistent Knowledge Graph"
+                >
+                  Topics
+                </button>
+              </div>
+            )}
 
             {safeGraphData.nodes.length > 0 && (
               <span className="text-[11px] font-mono text-[#4A4F49] dark:text-[#A1A1AA]">
@@ -945,12 +964,52 @@ export default function GraphView({
             }}
             onNodeClick={(node) => {
               if (!node || isGhostNode(node)) return;
+              if (graphMode === 'conversation') {
+                setSelectedChatNode(node);
+                return;
+              }
               const numericId = typeof node.id === 'number' ? node.id : Number(node.id);
               if (Number.isInteger(numericId) && numericId > 0) {
                 onSelectFile(numericId);
               }
             }}
           />
+
+          {/* Chat Node Inspector Drawer */}
+          {selectedChatNode && graphMode === 'conversation' && (
+            <div className="absolute bottom-2 inset-x-2 p-3 bg-white/95 dark:bg-[#1A1B20]/95 backdrop-blur-md border border-[#E3E5DF] dark:border-[#272A32] rounded-xl shadow-lg z-20 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <div className="flex items-center justify-between pb-1.5 border-b border-[#E3E5DF] dark:border-[#272A32]">
+                <div className="flex items-center gap-1.5 font-semibold text-[#242824] dark:text-[#F4F4F5]">
+                  <span className={`w-2 h-2 rounded-full ${selectedChatNode.type === 'conversation_turn' ? 'bg-emerald-500' : 'bg-sky-500'}`} />
+                  <span>{selectedChatNode.type === 'conversation_turn' ? 'Conversation Turn' : 'Explored Concept'}</span>
+                </div>
+                <button
+                  onClick={() => setSelectedChatNode(null)}
+                  className="p-1 text-[#666B65] dark:text-[#8E8E98] hover:text-[#242824] dark:hover:text-[#F4F4F5] rounded cursor-pointer"
+                  title="Close Inspector"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="font-semibold text-[#1F6342] dark:text-emerald-400">
+                  {selectedChatNode.title || selectedChatNode.name}
+                </div>
+                {selectedChatNode.question && (
+                  <div className="text-[11px] text-[#4A4F49] dark:text-[#A1A1AA]">
+                    <strong className="text-[#242824] dark:text-[#F4F4F5]">User: </strong>
+                    {selectedChatNode.question}
+                  </div>
+                )}
+                {selectedChatNode.answer && (
+                  <div className="text-[11px] text-[#4A4F49] dark:text-[#A1A1AA] line-clamp-3">
+                    <strong className="text-[#242824] dark:text-[#F4F4F5]">ChattyFi: </strong>
+                    {selectedChatNode.answer.replace(/^[#>*-\s]+/gm, ' ').slice(0, 160)}...
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Floating Note Navigator when in Fullscreen */}
           {isFullscreen && activeFileId && (

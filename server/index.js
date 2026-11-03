@@ -777,6 +777,34 @@ app.get('/api/knowledge-graph', async (req, res) => {
   }
 });
 
+function extractTurnConcepts(content) {
+  if (!content || typeof content !== 'string') return [];
+  const concepts = new Set();
+  
+  // 1. Headings (## or ###)
+  const headingMatches = content.matchAll(/^#{2,4}\s+(?:\d+[\.\)]\s*)?([^\n#]+)/gm);
+  for (const match of headingMatches) {
+    const raw = match[1].trim().replace(/[*_`]/g, '');
+    if (raw.length > 2 && raw.length < 50) concepts.add(raw);
+  }
+
+  // 2. [[Wiki Links]]
+  const wikiMatches = content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g);
+  for (const match of wikiMatches) {
+    const raw = match[1].trim();
+    if (raw.length > 1 && raw.length < 45) concepts.add(raw);
+  }
+
+  // 3. Bold key points in bullet or numbered lists: 1. **Concept** – or - **Concept**:
+  const boldMatches = content.matchAll(/^(?:[\*\-]|(?:\d+[\.\)]))\s+\*\*([^*:\n]+)\*\*(?::|\s*[-–—])/gm);
+  for (const match of boldMatches) {
+    const raw = match[1].trim();
+    if (raw.length > 2 && raw.length < 45) concepts.add(raw);
+  }
+
+  return Array.from(concepts).slice(0, 5);
+}
+
 // GET /api/chattyfi/conversations/:id/graph - Conversation Graph (Scoped to an individual conversation)
 app.get('/api/chattyfi/conversations/:id/graph', async (req, res) => {
   try {
@@ -799,9 +827,9 @@ app.get('/api/chattyfi/conversations/:id/graph', async (req, res) => {
       [conversationId, userId]
     );
 
-    // Fetch messages in this conversation to identify captured notes and referenced concepts
+    // Fetch messages in this conversation ordered chronologically
     const messages = await dbAll(
-      `SELECT id, role, content, topic_id, processing_metadata FROM messages WHERE conversation_id = ? AND user_id = ?`,
+      `SELECT id, role, content, topic_id, processing_metadata, created_at FROM messages WHERE conversation_id = ? AND user_id = ? ORDER BY created_at ASC, rowid ASC`,
       [conversationId, userId]
     );
 
@@ -819,7 +847,81 @@ app.get('/api/chattyfi/conversations/:id/graph', async (req, res) => {
     const nodesMap = new Map();
     const edges = [];
 
-    // Add topic nodes scoped to this conversation
+    // 1. Build conversational turn nodes and extracted concepts from user questions & AI responses
+    let lastTurnNodeId = null;
+    let turnCount = 0;
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.role === 'user') {
+        turnCount++;
+        const nextMsg = messages[i + 1]?.role === 'assistant' ? messages[i + 1] : null;
+        const turnNodeId = `turn-${msg.id}`;
+        
+        let questionTitle = msg.content.trim().replace(/^#+\s*/, '').replace(/\n[\s\S]*/, '');
+        if (questionTitle.length > 42) {
+          questionTitle = questionTitle.slice(0, 39) + '...';
+        }
+
+        nodesMap.set(turnNodeId, {
+          id: turnNodeId,
+          title: questionTitle || `Query ${turnCount}`,
+          name: msg.content.trim(),
+          type: 'conversation_turn',
+          turnIndex: turnCount,
+          question: msg.content.trim(),
+          answer: nextMsg ? nextMsg.content.trim() : null,
+          messageId: msg.id,
+          assistantMessageId: nextMsg ? nextMsg.id : null,
+          val: 6.5,
+        });
+
+        // Link sequential turns in this conversation thread
+        if (lastTurnNodeId) {
+          edges.push({
+            id: `edge-flow-${lastTurnNodeId}-${turnNodeId}`,
+            source: lastTurnNodeId,
+            target: turnNodeId,
+            relationship: 'followed_by',
+            edgeStyle: 'solid',
+          });
+        }
+        lastTurnNodeId = turnNodeId;
+
+        // Extract key concepts from the assistant answer and create connected subnodes
+        if (nextMsg && nextMsg.content) {
+          const concepts = extractTurnConcepts(nextMsg.content);
+          for (const concept of concepts) {
+            const conceptSlug = concept.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const conceptNodeId = `concept-${conversationId.slice(0, 8)}-${conceptSlug}`;
+            
+            if (!nodesMap.has(conceptNodeId)) {
+              nodesMap.set(conceptNodeId, {
+                id: conceptNodeId,
+                title: concept,
+                name: concept,
+                type: 'subtopic',
+                parentTurn: turnNodeId,
+                val: 4.2,
+              });
+            }
+
+            const edgeId = `edge-${turnNodeId}-${conceptNodeId}`;
+            if (!edges.some(e => e.id === edgeId)) {
+              edges.push({
+                id: edgeId,
+                source: turnNodeId,
+                target: conceptNodeId,
+                relationship: 'addresses_concept',
+                edgeStyle: 'solid',
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Add topic nodes scoped to this conversation (if manually captured)
     for (const at of associatedTopics) {
       const topicNodeId = `topic-${at.topic_id}`;
       nodesMap.set(topicNodeId, {
@@ -1740,13 +1842,14 @@ app.post('/api/ai/generate', async (req, res) => {
 // POST /api/chattyfi/conversations/:id/reply - Unified AI ChattyFi assistant response generator
 app.post('/api/chattyfi/conversations/:id/reply', async (req, res) => {
   let isClientClosed = false;
-  req.on('close', () => {
+  res.on('close', () => {
     if (!res.writableEnded) {
       isClientClosed = true;
     }
   });
 
   try {
+    console.log('[REPLY ROUTE] Received request for conversation:', req.params.id);
     const { userId } = resolveUserContext(req);
     const conversationId = req.params.id;
     const { prompt, task } = req.body || {};
@@ -1755,18 +1858,20 @@ app.post('/api/chattyfi/conversations/:id/reply', async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    // Verify conversation ownership
+    console.log('[REPLY ROUTE] Checking ownership for userId:', userId);
     await assertConversationOwnership(userId, conversationId);
 
-    // Fetch ordered conversation messages for context
+    console.log('[REPLY ROUTE] Listing messages...');
     const existingMessages = await listMessages(userId, conversationId);
 
-    // Fetch vault titles for contextual cross-linking
+    console.log('[REPLY ROUTE] Fetching vault titles...');
     const notes = await dbAll(`SELECT title FROM files WHERE user_id = ? LIMIT 60`, [userId]);
     const vaultTitles = notes.map((n) => n.title);
 
+    console.log('[REPLY ROUTE] Resolving AI config...');
     const aiConfig = await resolveAIConfig(req);
 
+    console.log('[REPLY ROUTE] Generating unified AI markdown...');
     const result = await generateUnifiedAIMarkdown({
       task: task || 'chattyfi_conversation',
       prompt,
@@ -1774,13 +1879,14 @@ app.post('/api/chattyfi/conversations/:id/reply', async (req, res) => {
       vaultTitles,
       aiConfig,
     });
+    console.log('[REPLY ROUTE] Generation finished. isClientClosed:', isClientClosed, 'req.destroyed:', req.destroyed, 'res.destroyed:', res.destroyed);
 
-    // If client aborted or closed connection before completion, do NOT persist completed assistant message
-    if (isClientClosed || req.destroyed) {
+    if (isClientClosed || res.destroyed) {
+      console.log('[REPLY ROUTE] Client response aborted, aborting.');
       return;
     }
 
-    // Persist assistant message in conversation with full metadata
+    console.log('[REPLY ROUTE] Persisting assistant message...');
     const assistantMessage = await createMessage(userId, conversationId, {
       role: 'assistant',
       content: result.content,
@@ -1795,12 +1901,14 @@ app.post('/api/chattyfi/conversations/:id/reply', async (req, res) => {
       },
     });
 
+    console.log('[REPLY ROUTE] Sending 201 response...');
     res.status(201).json({
       success: true,
       message: assistantMessage,
       generation: result,
     });
   } catch (err) {
+    console.error('[REPLY ROUTE] Error caught:', err);
     if (isClientClosed) return;
     sendRouteError(res, err);
   }

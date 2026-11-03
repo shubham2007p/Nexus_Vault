@@ -1310,6 +1310,7 @@ export default function App() {
             globalGraphData={globalGraphData}
             activeFileId={activeFileId}
             activeConversationId={activeConversationId}
+            conversationMessages={conversationMessages}
             workspaceMode={workspaceMode}
             onSelectFile={(id) => {
               handleSelectFile(id);
@@ -1323,28 +1324,30 @@ export default function App() {
             onCloseRightPanel={() => setIsRightPanelOpen(false)}
           />
         </ErrorBoundary>
-        <div className="flex-1 overflow-hidden min-h-0">
-          <ErrorBoundary>
-            <Backlinks
-              file={activeFile}
-              backlinks={backlinks}
-              onAcceptLink={handleAcceptLink}
-              onRejectLink={handleRejectLink}
-              onSelectFile={(id) => {
-                handleSelectFile(id);
-                if (window.innerWidth < 1024) setIsRightPanelOpen(false);
-              }}
-              onProcessAI={handleProcessAI}
-              isAIProcessing={isAIProcessing}
-              showAILinks={showAILinksOnGraph}
-              onToggleShowAILinks={setShowAILinksOnGraph}
-              onOpenAIReview={() => setIsAIReviewOpen(true)}
-              onRejectAllLinks={handleRejectAllLinks}
-              onAcceptAllLinks={handleAcceptAllLinks}
-              theme={theme}
-            />
-          </ErrorBoundary>
-        </div>
+        {workspaceMode === 'notes' && (
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ErrorBoundary>
+              <Backlinks
+                file={activeFile}
+                backlinks={backlinks}
+                onAcceptLink={handleAcceptLink}
+                onRejectLink={handleRejectLink}
+                onSelectFile={(id) => {
+                  handleSelectFile(id);
+                  if (window.innerWidth < 1024) setIsRightPanelOpen(false);
+                }}
+                onProcessAI={handleProcessAI}
+                isAIProcessing={isAIProcessing}
+                showAILinks={showAILinksOnGraph}
+                onToggleShowAILinks={setShowAILinksOnGraph}
+                onOpenAIReview={() => setIsAIReviewOpen(true)}
+                onRejectAllLinks={handleRejectAllLinks}
+                onAcceptAllLinks={handleAcceptAllLinks}
+                theme={theme}
+              />
+            </ErrorBoundary>
+          </div>
+        )}
       </div>
 
       {/* Cmd+K Quick Switcher Overlay */}
